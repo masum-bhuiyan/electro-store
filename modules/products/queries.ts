@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { cache } from "react";
+import type { Prisma } from "@/generated/prisma/client";
 
 export type ProductListItem = {
   id: string;
@@ -13,10 +14,52 @@ export type ProductListItem = {
   inStock: boolean;
 };
 
-export async function getProducts(): Promise<ProductListItem[]> {
+// প্রতি পেজে কয়টা প্রোডাক্ট দেখাব। এখন পরীক্ষার জন্য ২, দিনের শেষে ১২ করব
+export const PAGE_SIZE = 2;
+
+export type ProductFilters = {
+  q?: string;
+  category?: string;
+  brand?: string;
+  page?: number;
+};
+
+export type ProductListResult = {
+  items: ProductListItem[];
+  total: number;
+  page: number;
+  totalPages: number;
+};
+
+export async function getProducts(
+  filters: ProductFilters = {}
+): Promise<ProductListResult> {
+  // শুরুতে শর্ত শুধু একটা: প্রোডাক্ট চালু থাকতে হবে
+  const where: Prisma.ProductWhereInput = { isActive: true };
+
+  // সার্চ: নাম, মডেল বা ব্র্যান্ডের নামে মিললেই চলবে
+  const q = filters.q?.trim();
+  if (q) {
+    where.OR = [
+      { name: { contains: q, mode: "insensitive" } },
+      { model: { contains: q, mode: "insensitive" } },
+      { brand: { name: { contains: q, mode: "insensitive" } } },
+    ];
+  }
+
+  if (filters.category) where.category = { slug: filters.category };
+  if (filters.brand) where.brand = { slug: filters.brand };
+
+  // পেজ ভাগ: আগে মোট কয়টা মিলল গুনি
+  const total = await prisma.product.count({ where });
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const page = Math.min(Math.max(1, filters.page ?? 1), totalPages);
+
   const products = await prisma.product.findMany({
-    where: { isActive: true },
-    orderBy: { createdAt: "desc" },
+    where,
+    orderBy: [{ createdAt: "desc" }, { id: "asc" }],
+    skip: (page - 1) * PAGE_SIZE,
+    take: PAGE_SIZE,
     include: {
       brand: true,
       category: true,
@@ -24,8 +67,7 @@ export async function getProducts(): Promise<ProductListItem[]> {
     },
   });
 
-  return products.map((p) => {
-    // সবচেয়ে কম দামের ভ্যারিয়ান্টটা কার্ডে দেখাব
+  const items = products.map((p) => {
     const cheapest = [...p.variants].sort(
       (a, b) => Number(a.price) - Number(b.price)
     )[0];
@@ -42,6 +84,24 @@ export async function getProducts(): Promise<ProductListItem[]> {
       inStock: p.variants.some((v) => v.stock > 0),
     };
   });
+
+  return { items, total, page, totalPages };
+}
+
+// ফিল্টারের ড্রপডাউনে কোন কোন ক্যাটাগরি ও ব্র্যান্ড দেখাব
+export async function getFilterOptions() {
+  const [categories, brands] = await Promise.all([
+    prisma.category.findMany({
+      orderBy: { name: "asc" },
+      select: { name: true, slug: true },
+    }),
+    prisma.brand.findMany({
+      orderBy: { name: "asc" },
+      select: { name: true, slug: true },
+    }),
+  ]);
+
+  return { categories, brands };
 }
 export type ProductVariantItem = {
   id: string;
