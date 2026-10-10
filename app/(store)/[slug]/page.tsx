@@ -60,7 +60,11 @@ export default async function ProductDetailPage({ params }: Props) {
           )}
 
           <div className="mt-6">
-            <ProductPurchase variants={product.variants} />
+            <ProductPurchase
+  productName={product.name}
+  slug={product.slug}
+  variants={product.variants}
+/>
           </div>
 
           {product.warrantyMonths > 0 && (
