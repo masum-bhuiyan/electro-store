@@ -7,7 +7,7 @@ type Props = {
   params: Record<string, string>;
 };
 
-export default function Pagination({ page, totalPages, params }: Props) {
+export default function pagination({ page, totalPages, params }: Props) {
   if (totalPages <= 1) return null;
 
   function hrefFor(target: number): string {

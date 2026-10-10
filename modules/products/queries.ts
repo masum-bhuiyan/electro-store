@@ -172,3 +172,45 @@ export const getProductBySlug = cache(
     };
   }
 );
+export type SearchSuggestion = {
+  name: string;
+  slug: string;
+  brandName: string;
+  price: number;
+};
+
+export async function getSearchSuggestions(
+  q: string
+): Promise<SearchSuggestion[]> {
+  const term = q.trim();
+  if (!term) return [];
+
+  const products = await prisma.product.findMany({
+    where: {
+      isActive: true,
+      OR: [
+        // নামের শুরু মিললে
+        { name: { startsWith: term, mode: "insensitive" } },
+        // নামের মাঝের কোনো শব্দের শুরু মিললে (শব্দের আগে ফাঁকা থাকে)
+        { name: { contains: " " + term, mode: "insensitive" } },
+        // ব্র্যান্ডের নামের শুরু মিললে
+        { brand: { name: { startsWith: term, mode: "insensitive" } } },
+      ],
+    },
+    orderBy: { name: "asc" },
+    take: 6,
+    select: {
+      name: true,
+      slug: true,
+      brand: { select: { name: true } },
+      variants: { select: { price: true } },
+    },
+  });
+
+  return products.map((p) => ({
+    name: p.name,
+    slug: p.slug,
+    brandName: p.brand.name,
+    price: Math.min(...p.variants.map((v) => Number(v.price))),
+  }));
+}
