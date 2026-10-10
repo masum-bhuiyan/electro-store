@@ -159,3 +159,27 @@ export function useHydrated(): boolean {
     () => false
   );
 }
+
+// সার্ভারের আসল দাম ও স্টক দিয়ে কার্ট ঠিক করে; যা আর পাওয়া যায় না তা সরিয়ে দেয়
+export function syncCartWithServer(
+  fresh: { variantId: string; price: number; stock: number }[],
+  missingIds: string[]
+) {
+  const freshById = new Map(fresh.map((f) => [f.variantId, f]));
+
+  const next = getSnapshot()
+    .filter((i) => !missingIds.includes(i.variantId))
+    .map((i) => {
+      const f = freshById.get(i.variantId);
+      if (!f) return i;
+      return {
+        ...i,
+        price: f.price,
+        stock: f.stock,
+        quantity: clampQty(i.quantity, f.stock),
+      };
+    })
+    .filter((i) => i.quantity > 0);
+
+  setCart(next);
+}

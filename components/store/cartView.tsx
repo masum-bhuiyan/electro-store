@@ -119,13 +119,12 @@ export default function CartView() {
         <p className="mt-2 text-xs text-gray-500">
           ডেলিভারি চার্জ চেকআউটে যোগ হবে।
         </p>
-        <button
-          type="button"
-          disabled
-          className="mt-5 w-full cursor-not-allowed rounded-md bg-gray-300 px-6 py-3 font-medium text-gray-600"
+                <Link
+          href="/checkout"
+          className="mt-5 block w-full rounded-md bg-blue-600 px-6 py-3 text-center font-medium text-white hover:bg-blue-700"
         >
-          চেকআউট (দিন ৭-এ চালু হবে)
-        </button>
+          চেকআউটে যান
+        </Link>
       </aside>
     </div>
   );
