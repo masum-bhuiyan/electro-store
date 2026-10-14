@@ -49,3 +49,26 @@ export function paymentStatusLabel(status: string): string {
 export function paymentMethodLabel(method: string): string {
   return PAYMENT_METHOD_LABEL[method as PaymentMethodKey] ?? method;
 }
+export const ALL_ORDER_STATUSES: OrderStatusKey[] = [
+  "PENDING",
+  "CONFIRMED",
+  "SHIPPED",
+  "DELIVERED",
+  "CANCELLED",
+];
+
+export function isOrderStatus(value: unknown): value is OrderStatusKey {
+  return (
+    typeof value === "string" &&
+    (ALL_ORDER_STATUSES as string[]).includes(value)
+  );
+}
+
+// কোন অবস্থা থেকে কোন কোন অবস্থায় যাওয়া যাবে। সার্ভার ও বোতাম দুজনেই এটা দেখে
+export const NEXT_STATUSES: Record<OrderStatusKey, OrderStatusKey[]> = {
+  PENDING: ["CONFIRMED", "CANCELLED"],
+  CONFIRMED: ["SHIPPED", "CANCELLED"],
+  SHIPPED: ["DELIVERED", "CANCELLED"],
+  DELIVERED: [],
+  CANCELLED: [],
+};

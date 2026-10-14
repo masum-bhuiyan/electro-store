@@ -17,6 +17,9 @@ export default async function PanelLayout({
             <Link href="/admin" className="font-bold">
               অ্যাডমিন
             </Link>
+            <Link href="/admin/orders" className="hover:text-blue-600">
+              অর্ডার
+            </Link>
             <Link href="/admin/products" className="hover:text-blue-600">
               প্রোডাক্ট
             </Link>
