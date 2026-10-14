@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { formatPrice } from "@/lib/format";
 import { DIVISIONS, getShippingFee, isDivision } from "@/lib/shipping";
@@ -66,6 +67,7 @@ function Field({
 
 export default function CheckoutView() {
   const hydrated = useHydrated();
+    const router = useRouter();
   const { items } = useCart();
 
   const [form, setForm] = useState<CustomerInput>(EMPTY_FORM);
@@ -183,9 +185,10 @@ export default function CheckoutView() {
         idempotencyKey: keyRef.current,
       });
 
-      if (result.ok) {
+            if (result.ok) {
         setPlaced({ orderNumber: result.orderNumber, total: result.total });
         clearCart();
+        router.push(`/order/success/${result.orderNumber}`);
         return;
       }
 
@@ -216,24 +219,20 @@ export default function CheckoutView() {
       </div>
     ) : null;
 
-  if (placed) {
+    if (placed) {
     return (
       <div className="mx-auto max-w-lg rounded-lg border border-green-200 bg-green-50 p-8 text-center">
         <p className="text-4xl">✅</p>
-        <h2 className="mt-3 text-xl font-bold">আপনার অর্ডার গ্রহণ করা হয়েছে</h2>
-        <p className="mt-4 text-sm text-gray-700">অর্ডার নম্বর</p>
-        <p className="font-mono text-2xl font-bold">{placed.orderNumber}</p>
+        <h2 className="mt-3 text-xl font-bold">অর্ডার গ্রহণ করা হয়েছে</h2>
         <p className="mt-3 text-sm text-gray-700">
-          মোট {formatPrice(placed.total)} · ক্যাশ অন ডেলিভারি
+          অর্ডার নম্বর: <span className="font-mono font-bold">{placed.orderNumber}</span>
         </p>
-        <p className="mt-4 text-sm text-gray-600">
-          নম্বরটি লিখে রাখুন বা স্ক্রিনশট নিন। পেজ রিফ্রেশ করলে এটি আর দেখা যাবে না।
-        </p>
+        <p className="mt-3 text-sm text-gray-600">নিশ্চিতকরণ পেজ খুলছে...</p>
         <Link
-          href="/products"
-          className="mt-6 inline-block rounded-md bg-blue-600 px-5 py-2 text-sm font-medium text-white hover:bg-blue-700"
+          href={`/order/success/${placed.orderNumber}`}
+          className="mt-4 inline-block text-sm text-blue-600 underline"
         >
-          কেনাকাটা চালিয়ে যান
+          পেজ না খুললে এখানে চাপুন
         </Link>
       </div>
     );

@@ -124,3 +124,11 @@ export function normalizeItems(input: unknown): CartLineInput[] | null {
   }
   return items;
 }
+// অর্ডার নম্বরের ফরম্যাট: ES-YYMMDD-XXXXXX (0, 1, I, L, O বাদ)
+const ORDER_NUMBER_PATTERN = /^ES-\d{6}-[ABCDEFGHJKMNPQRSTUVWXYZ2-9]{6}$/;
+
+export function normalizeOrderNumber(raw: unknown): string | null {
+  if (typeof raw !== "string") return null;
+  const s = raw.trim().toUpperCase().replace(/\s/g, "");
+  return ORDER_NUMBER_PATTERN.test(s) ? s : null;
+}
