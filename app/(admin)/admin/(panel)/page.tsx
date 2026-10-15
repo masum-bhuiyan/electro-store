@@ -17,7 +17,11 @@ export default async function AdminDashboardPage() {
     },
     { label: "মোট অর্ডার", value: stats.totalOrders, href: "/admin/orders" },
     { label: "চালু প্রোডাক্ট", value: stats.activeProducts, href: "/admin/products" },
-    { label: "কম স্টকের ভ্যারিয়ান্ট", value: stats.lowStockVariants, href: null },
+        {
+      label: "কম স্টকের ভ্যারিয়ান্ট",
+      value: stats.lowStockVariants,
+      href: "/admin/stock?low=1",
+    },
   ];
 
   const cardClass = "rounded-lg border border-gray-200 bg-white p-5";

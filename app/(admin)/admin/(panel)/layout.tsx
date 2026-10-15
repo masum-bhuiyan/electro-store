@@ -12,8 +12,8 @@ export default async function PanelLayout({
   return (
     <div className="min-h-screen bg-gray-50">
       <header className="border-b border-gray-200 bg-white">
-        <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3">
-          <nav className="flex items-center gap-5 text-sm font-medium">
+        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-x-4 gap-y-2 px-4 py-3">
+          <nav className="flex flex-wrap items-center gap-x-5 gap-y-1 text-sm font-medium">
             <Link href="/admin" className="font-bold">
               অ্যাডমিন
             </Link>
@@ -22,6 +22,12 @@ export default async function PanelLayout({
             </Link>
             <Link href="/admin/products" className="hover:text-blue-600">
               প্রোডাক্ট
+            </Link>
+            <Link href="/admin/stock" className="hover:text-blue-600">
+              স্টক
+            </Link>
+            <Link href="/admin/catalog" className="hover:text-blue-600">
+              ক্যাটাগরি ও ব্র্যান্ড
             </Link>
             <Link href="/" className="text-gray-500 hover:text-blue-600">
               সাইট দেখুন

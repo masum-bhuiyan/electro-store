@@ -22,6 +22,7 @@ export type ProductFilters = {
   category?: string;
   brand?: string;
   page?: number;
+  featured?: boolean;
 };
 
 export type ProductListResult = {
@@ -49,6 +50,7 @@ export async function getProducts(
 
   if (filters.category) where.category = { slug: filters.category };
   if (filters.brand) where.brand = { slug: filters.brand };
+  if (filters.featured) where.isFeatured = true;
 
   // পেজ ভাগ: আগে মোট কয়টা মিলল গুনি
   const total = await prisma.product.count({ where });
@@ -213,4 +215,15 @@ export async function getSearchSuggestions(
     brandName: p.brand.name,
     price: Math.min(...p.variants.map((v) => Number(v.price))),
   }));
+}
+// সাইটম্যাপের জন্য: চালু প্রোডাক্টের slug ও শেষ বদলের সময়
+export async function getSitemapProducts(): Promise<
+  { slug: string; updatedAt: Date }[]
+> {
+  return prisma.product.findMany({
+    where: { isActive: true },
+    select: { slug: true, updatedAt: true },
+    orderBy: { updatedAt: "desc" },
+    take: 5000,
+  });
 }

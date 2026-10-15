@@ -18,7 +18,12 @@ export type PlaceOrderResult =
     }
   | {
       ok: false;
-      code: "UNAVAILABLE" | "OUT_OF_STOCK" | "PRICE_CHANGED" | "SERVER_ERROR";
+            code:
+        | "UNAVAILABLE"
+        | "OUT_OF_STOCK"
+        | "PRICE_CHANGED"
+        | "RATE_LIMITED"
+        | "SERVER_ERROR";
       message: string;
     };
 

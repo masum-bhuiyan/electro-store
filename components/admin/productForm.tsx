@@ -507,9 +507,12 @@ export default function ProductForm({ mode, options, initial }: Props) {
                   <p className="rounded-md border border-gray-200 bg-white px-3 py-2 text-sm">
                     {v.currentStock}
                   </p>
-                  <span className="mt-1 block text-xs text-gray-500">
-                    স্টক বদলানো দিন ১১-তে আসছে
-                  </span>
+                  <Link
+                    href={`/admin/stock/${v.id}`}
+                    className="mt-1 block text-xs text-blue-600 underline"
+                  >
+                    স্টক বদলান
+                  </Link>
                 </div>
               )}
             </div>

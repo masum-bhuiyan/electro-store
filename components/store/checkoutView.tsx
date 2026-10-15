@@ -195,7 +195,7 @@ export default function CheckoutView() {
       setFormError(result.message);
       if (result.code === "INVALID_INPUT") {
         setErrors(result.fieldErrors);
-      } else if (result.code !== "SERVER_ERROR") {
+       } else if (result.code !== "SERVER_ERROR" && result.code !== "RATE_LIMITED") {
         // দাম বা স্টক বদলেছে: নতুন করে সার্ভার থেকে দেখে নিই
         setRefreshTick((t) => t + 1);
       }

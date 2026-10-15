@@ -9,7 +9,12 @@ export type CreateOrderResult =
   | { ok: true; orderNumber: string; total: number }
   | {
       ok: false;
-      code: "UNAVAILABLE" | "OUT_OF_STOCK" | "PRICE_CHANGED" | "SERVER_ERROR";
+            code:
+        | "UNAVAILABLE"
+        | "OUT_OF_STOCK"
+        | "PRICE_CHANGED"
+        | "RATE_LIMITED"
+        | "SERVER_ERROR";
       message: string;
     };
 
@@ -45,6 +50,26 @@ async function findByKey(idempotencyKey: string) {
     select: { orderNumber: true, total: true },
   });
 }
+// ভুয়া অর্ডার ঠেকানোর সীমা
+const MAX_ORDERS_PER_HOUR = 3;
+const MAX_PENDING_PER_PHONE = 3;
+
+async function phoneLimitMessage(phone: string): Promise<string | null> {
+  const since = new Date(Date.now() - 60 * 60 * 1000);
+
+  const [recent, pending] = await Promise.all([
+    prisma.order.count({ where: { phone, createdAt: { gte: since } } }),
+    prisma.order.count({ where: { phone, status: "PENDING" } }),
+  ]);
+
+  if (recent >= MAX_ORDERS_PER_HOUR) {
+    return "এই মোবাইল নম্বর থেকে অল্প সময়ে অনেক অর্ডার হয়েছে। এক ঘণ্টা পর আবার চেষ্টা করুন, অথবা আমাদের ফোন করুন।";
+  }
+  if (pending >= MAX_PENDING_PER_PHONE) {
+    return "এই নম্বরের কয়েকটি অর্ডার এখনো নিশ্চিত হয়নি। সেগুলো নিশ্চিত হলে নতুন অর্ডার করতে পারবেন, অথবা আমাদের ফোন করুন।";
+  }
+  return null;
+}
 
 export async function createOrder(params: {
   customer: ValidCustomer;
@@ -61,6 +86,10 @@ export async function createOrder(params: {
   }
 
   try {
+        const limitMessage = await phoneLimitMessage(customer.phone);
+    if (limitMessage) {
+      return { ok: false, code: "RATE_LIMITED", message: limitMessage };
+    }
     const order = await prisma.$transaction(
       async (tx) => {
         // ১. ডাটাবেস থেকে আসল দাম ও তথ্য আনি

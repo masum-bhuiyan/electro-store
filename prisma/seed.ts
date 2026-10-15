@@ -6,6 +6,18 @@ const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
 const prisma = new PrismaClient({ adapter });
 
 async function main() {
+    // সুরক্ষা: seed সব প্রোডাক্ট ও অর্ডার মুছে ফেলে, তাই দুই ধাপে আটকাই
+  if (process.env.ALLOW_SEED !== "yes") {
+    throw new Error(
+      "Seed বন্ধ আছে। শুধু dev ডাটাবেসের .env ফাইলে ALLOW_SEED=yes থাকলে চলবে।"
+    );
+  }
+  const existingOrders = await prisma.order.count();
+  if (existingOrders > 0 && process.env.FORCE_SEED !== "yes") {
+    throw new Error(
+      `ডাটাবেসে ${existingOrders}টি অর্ডার আছে, seed চালালে সব মুছে যাবে। নিশ্চিত হলে এই কমান্ডে চালান: $env:FORCE_SEED="yes"; npx prisma db seed`
+    );
+  }
   // আগের ডেটা পরিষ্কার (শুধু ডেভেলপমেন্টে)
   await prisma.stockMovement.deleteMany();
   await prisma.orderItem.deleteMany();
