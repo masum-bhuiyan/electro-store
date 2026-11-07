@@ -1,3 +1,4 @@
+import { isAllowedImageUrl } from "@/lib/images";
 export type VariantInput = {
   id: string | null;
   sku: string;
@@ -61,15 +62,6 @@ function parseInteger(v: unknown, max: number): number | null {
   return n <= max ? n : null;
 }
 
-function isHttpsUrl(s: string): boolean {
-  if (s.length > 500) return false;
-  try {
-    return new URL(s).protocol === "https:";
-  } catch {
-    return false;
-  }
-}
-
 export function validateProduct(input: unknown): ProductValidation {
   const raw = isRecord(input) ? input : {};
   const errors: ProductErrors = {};
@@ -119,9 +111,9 @@ export function validateProduct(input: unknown): ProductValidation {
     for (const item of rawImages) {
       const url = str(item);
       if (!url) continue;
-      if (!isHttpsUrl(url)) {
+            if (!isAllowedImageUrl(url)) {
         errors.images =
-          "প্রতিটা লিংক https:// দিয়ে শুরু হওয়া সঠিক ঠিকানা হতে হবে (সর্বোচ্চ ৫০০ অক্ষর)";
+          "শুধু Cloudinary-র ছবির লিংক চলবে (https://res.cloudinary.com/.../image/upload/... ধরনের)";
         break;
       }
       images.push(url);

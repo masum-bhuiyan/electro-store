@@ -1,15 +1,33 @@
+/* eslint-disable @next/next/no-img-element */
 import Link from "next/link";
 import { formatPrice } from "@/lib/format";
+import { imageSrcSet, imageUrl, isAllowedImageUrl } from "@/lib/images";
 import type { ProductListItem } from "@/modules/products/queries";
 
 export default function ProductCard({ product }: { product: ProductListItem }) {
+  const image =
+    product.image && isAllowedImageUrl(product.image) ? product.image : null;
+
   return (
     <Link
       href={`/products/${product.slug}`}
       className="group block overflow-hidden rounded-lg border border-gray-200 bg-white transition hover:shadow-md"
     >
-      <div className="flex aspect-square items-center justify-center bg-gray-100 text-4xl font-bold text-gray-300">
-        {product.brandName[0]}
+      <div className="flex aspect-square items-center justify-center overflow-hidden bg-gray-100">
+        {image ? (
+          <img
+            src={imageUrl(image, 480)}
+            srcSet={imageSrcSet(image, [240, 480, 720])}
+            sizes="(min-width: 1024px) 25vw, (min-width: 768px) 33vw, 50vw"
+            alt={product.name}
+            loading="lazy"
+            className="h-full w-full bg-white object-contain"
+          />
+        ) : (
+          <span className="text-4xl font-bold text-gray-300">
+            {product.brandName[0]}
+          </span>
+        )}
       </div>
       <div className="p-4">
         <p className="text-xs text-gray-500">{product.brandName}</p>

@@ -576,7 +576,7 @@ export default function ProductForm({ mode, options, initial }: Props) {
         <Field
           label="প্রতি লাইনে একটা https:// লিংক (সর্বোচ্চ ৮টা)"
           error={errors.images}
-          hint="এখন শুধু সংরক্ষণ হবে, সাইটে ছবি দেখানো দিন ১৩-তে আসছে।"
+                    hint="Cloudinary থেকে কপি করা লিংক। প্রথম ছবিটাই তালিকা ও শেয়ারে দেখাবে।"
         >
           <textarea
             value={form.imagesText}

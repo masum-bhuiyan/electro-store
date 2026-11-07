@@ -3,6 +3,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import ProductPurchase from "@/components/store/productPurchase";
 import { getProductBySlug } from "@/modules/products/queries";
+import ProductGallery from "@/components/store/productGallery";
+import { imageUrl, isAllowedImageUrl } from "@/lib/images";
 
 export const dynamic = "force-dynamic";
 
@@ -19,9 +21,12 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     return { title: "প্রোডাক্ট পাওয়া যায়নি" };
   }
 
+    const cover = product.images.find((src) => isAllowedImageUrl(src));
+
   return {
     title: `${product.name} | Electro Store`,
     description: product.description,
+    openGraph: cover ? { images: [{ url: imageUrl(cover, 1200) }] } : undefined,
   };
 }
 
@@ -46,9 +51,11 @@ export default async function ProductDetailPage({ params }: Props) {
       </nav>
 
       <div className="grid gap-8 md:grid-cols-2">
-        <div className="flex aspect-square items-center justify-center rounded-lg bg-gray-100 text-8xl font-bold text-gray-300">
-          {product.brandName[0]}
-        </div>
+                <ProductGallery
+          images={product.images}
+          name={product.name}
+          fallbackLetter={product.brandName[0]}
+        />
 
         <div>
           <p className="text-sm text-gray-500">
