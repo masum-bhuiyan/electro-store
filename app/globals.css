@@ -2,21 +2,31 @@
 
 :root {
   --background: #ffffff;
-  --foreground: #171717;
+  --foreground: #112c2d;
   color-scheme: light;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+
+  --color-brand-blue: #038cd4;
+  --color-brand-orange: #fc7e07;
+  --color-brand-teal: #112c2d;
+  --color-brand-mist: #f0f8fd;
+
+  --font-sans: var(--font-inter), var(--font-bangla), sans-serif;
+  --font-heading: var(--font-poppins), var(--font-bangla), sans-serif;
 }
-
-
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+}
+
+a:focus-visible,
+button:focus-visible,
+input:focus-visible {
+  outline: 3px solid var(--color-brand-orange);
+  outline-offset: 2px;
 }
