@@ -2,7 +2,7 @@
 const raw = process.env.SITE_URL || "https://your-site.hostingersite.com";
 export const SITE_URL = raw.replace(/\/+$/, "");
 
-export const SHOP_NAME = "Electro Store";
+export const SHOP_NAME = "Bhuiyan Tools";
 
 // দোকানের ফোন নম্বর। খালি থাকলে footer-এ কিছু দেখায় না। লঞ্চের আগে নিজের নম্বর বসান
-export const SHOP_PHONE = "01811223344";
+export const SHOP_PHONE = "01741-850132";
