@@ -4,6 +4,8 @@ const PATHS = {
   truck: ["M2 6h11v10H2z", "M13 9h5l3 3v4h-8", "M7 15a2 2 0 100 4 2 2 0 000-4z", "M17 15a2 2 0 100 4 2 2 0 000-4z"],
   help: ["M4 14v-2a8 8 0 0116 0v2", "M3 14h4v6H4a1 1 0 01-1-1z", "M17 14h4v5a1 1 0 01-1 1h-3z"],
   chat: ["M21 12a8 8 0 01-11.7 7L4 20l1.2-4.6A8 8 0 1121 12z"],
+  cart: ["M3 4h2l2.5 11h10l2-8H6.5", "M9 18.5a1.5 1.5 0 100 3 1.5 1.5 0 000-3z", "M17 18.5a1.5 1.5 0 100 3 1.5 1.5 0 000-3z"],
+  check: ["M5 12.5l4.5 4.5L19 7.5"],
 } as const;
 
 export type IconName = keyof typeof PATHS;

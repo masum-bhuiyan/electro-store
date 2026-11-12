@@ -12,6 +12,16 @@ export type ProductListItem = {
   price: number;
   comparePrice: number | null;
   inStock: boolean;
+  variant: DefaultVariant | null;
+};
+export type DefaultVariant = {
+  id: string;
+  sku: string;
+  color: string | null;
+  storage: string | null;
+  price: number;
+  comparePrice: number | null;
+  stock: number;
 };
 
 // প্রতি পেজে কয়টা প্রোডাক্ট দেখাব। এখন পরীক্ষার জন্য ২, দিনের শেষে ১২ করব
@@ -65,14 +75,26 @@ export async function getProducts(
     include: {
       brand: true,
       category: true,
-      variants: { select: { price: true, comparePrice: true, stock: true } },
+           variants: {
+        select: {
+          id: true,
+          sku: true,
+          color: true,
+          storage: true,
+          price: true,
+          comparePrice: true,
+          stock: true,
+        },
+      },
     },
   });
 
-  const items = products.map((p) => {
-    const cheapest = [...p.variants].sort(
+    const items: ProductListItem[] = products.map((p) => {
+    // ডিফল্ট ভ্যারিয়ান্ট: কম দামের মধ্যে যেটার স্টক আছে; কোনোটার না থাকলে সবচেয়ে কম দামেরটা
+    const sorted = [...p.variants].sort(
       (a, b) => Number(a.price) - Number(b.price)
-    )[0];
+    );
+    const chosen = sorted.find((v) => v.stock > 0) ?? sorted[0];
 
     return {
       id: p.id,
@@ -81,9 +103,20 @@ export async function getProducts(
       brandName: p.brand.name,
       categoryName: p.category.name,
       image: p.images[0] ?? null,
-      price: cheapest ? Number(cheapest.price) : 0,
-      comparePrice: cheapest?.comparePrice ? Number(cheapest.comparePrice) : null,
+      price: chosen ? Number(chosen.price) : 0,
+      comparePrice: chosen?.comparePrice ? Number(chosen.comparePrice) : null,
       inStock: p.variants.some((v) => v.stock > 0),
+      variant: chosen
+        ? {
+            id: chosen.id,
+            sku: chosen.sku,
+            color: chosen.color,
+            storage: chosen.storage,
+            price: Number(chosen.price),
+            comparePrice: chosen.comparePrice ? Number(chosen.comparePrice) : null,
+            stock: chosen.stock,
+          }
+        : null,
     };
   });
 

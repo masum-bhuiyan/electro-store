@@ -4,9 +4,7 @@ import Icon from "@/components/ui/icon";
 import { buttonClass } from "@/components/ui/button";
 import TrustStrip from "@/components/store/trustStrip";
 import { en } from "@/lib/messages";
-
-// WhatsApp নম্বর (দেশের কোডসহ, + ছাড়া)। নম্বরটা ঠিক কি না যাচাই করুন; পরে lib/site.ts-এ সরাব।
-const WHATSAPP_NUMBER = "8801840016930";
+import { WHATSAPP_NUMBER } from "@/lib/whatsapp";
 
 export default function Hero() {
   return (

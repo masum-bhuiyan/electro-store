@@ -23,4 +23,24 @@ export const en = {
     empty: "Products are coming soon.",
     track: "Check your order status",
   },
+    product: {
+    chooseOption: "Choose option",
+    buyNow: "Buy Now",
+    addToCart: "Add to Cart",
+    maxInCart: "Max quantity in cart",
+    outOfStock: "Out of stock",
+    inStock: "In stock",
+    onlyLeft: (n: number) => `Only ${n} left`,
+    off: (n: number) => `${n}% OFF`,
+    inCart: (n: number) => `In your cart: ${n}`,
+    viewCart: "View cart",
+    whatsapp: "Order on WhatsApp",
+    whatsappMessage: (name: string, option: string, price: string, url: string) =>
+      `Hello, I want to order:\n${name} (${option})\nPrice: ${price}\n${url}`,
+  },
+    card: {
+    original: "Original",
+    addToCart: "Add to cart",
+    added: "Added to cart",
+  },
 } as const;
