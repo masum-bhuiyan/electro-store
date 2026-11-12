@@ -25,7 +25,7 @@ export type DefaultVariant = {
 };
 
 // প্রতি পেজে কয়টা প্রোডাক্ট দেখাব। এখন পরীক্ষার জন্য ২, দিনের শেষে ১২ করব
-export const PAGE_SIZE = 2;
+export const PAGE_SIZE = 12;
 
 export type ProductFilters = {
   q?: string;
@@ -58,7 +58,12 @@ export async function getProducts(
     ];
   }
 
-  if (filters.category) where.category = { slug: filters.category };
+    // প্যারেন্ট ক্যাটাগরি হলে তার সাব-ক্যাটাগরির প্রোডাক্টও আসবে
+  if (filters.category) {
+    where.category = {
+      OR: [{ slug: filters.category }, { parent: { slug: filters.category } }],
+    };
+  }
   if (filters.brand) where.brand = { slug: filters.brand };
   if (filters.featured) where.isFeatured = true;
 

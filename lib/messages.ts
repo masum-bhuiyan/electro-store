@@ -43,4 +43,21 @@ export const en = {
     addToCart: "Add to cart",
     added: "Added to cart",
   },
+    category: {
+    shopBy: "Shop by Category",
+    allProducts: "All Products",
+    all: "All",
+    home: "Home",
+    products: (n: number) => `${n} ${n === 1 ? "product" : "products"}`,
+    found: (n: number) => `${n} ${n === 1 ? "product" : "products"} found`,
+    empty: "No products in this category yet.",
+    browseAll: "Browse all products",
+    metaDescription: (name: string) =>
+      `Buy original ${name} for mobile repair at honest prices. Cash on delivery across Bangladesh.`,
+  },
+  pagination: {
+    label: "Pagination",
+    prev: "Previous",
+    next: "Next",
+  },
 } as const;

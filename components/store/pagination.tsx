@@ -1,55 +1,88 @@
 import Link from "next/link";
+import { en } from "@/lib/messages";
 
 type Props = {
   page: number;
   totalPages: number;
   // বর্তমান সার্চ/ফিল্টারের শর্ত, যাতে পেজ বদলালে ওগুলো হারিয়ে না যায়
   params: Record<string, string>;
+  // কোন পেজের লিংক বানাব; না দিলে /products
+  basePath?: string;
 };
 
-export default function pagination({ page, totalPages, params }: Props) {
+// ১ ... ৪ ৫ ৬ ... ১০ ধরনের ছোট তালিকা
+function pageList(page: number, total: number): (number | "…")[] {
+  const wanted = [1, total, page - 1, page, page + 1].filter(
+    (n) => n >= 1 && n <= total
+  );
+  const nums = [...new Set(wanted)].sort((a, b) => a - b);
+  const out: (number | "…")[] = [];
+  nums.forEach((n, i) => {
+    if (i > 0 && n - nums[i - 1] > 1) out.push("…");
+    out.push(n);
+  });
+  return out;
+}
+
+const box =
+  "inline-flex h-11 min-w-11 items-center justify-center rounded-lg border-2 px-3 text-sm font-semibold transition-colors";
+
+export default function Pagination({
+  page,
+  totalPages,
+  params,
+  basePath = "/products",
+}: Props) {
   if (totalPages <= 1) return null;
 
   function hrefFor(target: number): string {
     const sp = new URLSearchParams(params);
     if (target > 1) sp.set("page", String(target));
     const query = sp.toString();
-    return query ? `/products?${query}` : "/products";
+    return query ? `${basePath}?${query}` : basePath;
   }
 
-  const pages = Array.from({ length: totalPages }, (_, i) => i + 1);
-
   return (
-    <nav className="mt-8 flex flex-wrap items-center justify-center gap-2 text-sm">
+    <nav
+      aria-label={en.pagination.label}
+      className="mt-8 flex flex-wrap items-center justify-center gap-2"
+    >
       {page > 1 && (
         <Link
           href={hrefFor(page - 1)}
-          className="rounded-md border border-gray-300 px-3 py-2 hover:bg-gray-50"
+          className={`${box} border-gray-300 text-brand-teal hover:border-brand-blue`}
         >
-          ← আগের
+          ← {en.pagination.prev}
         </Link>
       )}
 
-      {pages.map((n) => (
-        <Link
-          key={n}
-          href={hrefFor(n)}
-          className={
-            n === page
-              ? "rounded-md bg-blue-600 px-3 py-2 font-medium text-white"
-              : "rounded-md border border-gray-300 px-3 py-2 hover:bg-gray-50"
-          }
-        >
-          {n}
-        </Link>
-      ))}
+      {pageList(page, totalPages).map((n, i) =>
+        n === "…" ? (
+          <span key={`gap-${i}`} className="px-1 text-gray-500">
+            …
+          </span>
+        ) : (
+          <Link
+            key={n}
+            href={hrefFor(n)}
+            aria-current={n === page ? "page" : undefined}
+            className={
+              n === page
+                ? `${box} border-brand-teal bg-brand-teal text-white`
+                : `${box} border-gray-300 text-brand-teal hover:border-brand-blue`
+            }
+          >
+            {n}
+          </Link>
+        )
+      )}
 
       {page < totalPages && (
         <Link
           href={hrefFor(page + 1)}
-          className="rounded-md border border-gray-300 px-3 py-2 hover:bg-gray-50"
+          className={`${box} border-gray-300 text-brand-teal hover:border-brand-blue`}
         >
-          পরের →
+          {en.pagination.next} →
         </Link>
       )}
     </nav>
