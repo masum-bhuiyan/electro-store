@@ -60,4 +60,15 @@ export const en = {
     prev: "Previous",
     next: "Next",
   },
+    detail: {
+    description: "Description",
+    specs: "Specifications",
+    model: "Model",
+    warranty: (months: number) => `${months}-month warranty`,
+    related: "Related Products",
+    notFound: "Product not found",
+    image: (n: number) => `Image ${n}`,
+    prevImage: "Previous image",
+    nextImage: "Next image",
+  },
 } as const;

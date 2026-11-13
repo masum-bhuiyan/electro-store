@@ -2,18 +2,15 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Icon from "@/components/ui/icon";
 import { buttonClass } from "@/components/ui/button";
 import { formatPrice } from "@/lib/format";
 import { addToCart, MAX_PER_ITEM, useCart } from "@/lib/cart-store";
 import { en } from "@/lib/messages";
+import { variantLabel } from "@/lib/variant-label";
 import { whatsappLink } from "@/lib/whatsapp";
 import type { ProductVariantItem } from "@/modules/products/queries";
-
-function variantLabel(v: ProductVariantItem): string {
-  return [v.color, v.storage].filter(Boolean).join(" / ") || v.sku;
-}
 
 export default function ProductPurchase({
   productName,
@@ -25,6 +22,8 @@ export default function ProductPurchase({
   variants: ProductVariantItem[];
 }) {
   const router = useRouter();
+  const buyRef = useRef<HTMLDivElement>(null);
+  const [showBar, setShowBar] = useState(false);
 
   // শুরুতে প্রথম যে ভ্যারিয়ান্টের স্টক আছে সেটা বাছাই থাকবে
   const [selectedId, setSelectedId] = useState(
@@ -37,6 +36,7 @@ export default function ProductPurchase({
   const inCart = items.find((i) => i.variantId === selected.id)?.quantity ?? 0;
   const limit = Math.min(selected.stock, MAX_PER_ITEM);
   const canAdd = selected.stock > 0 && inCart < limit;
+  const outOfStock = selected.stock <= 0;
 
   const discount =
     selected.comparePrice && selected.comparePrice > selected.price
@@ -44,6 +44,18 @@ export default function ProductPurchase({
           ((selected.comparePrice - selected.price) / selected.comparePrice) * 100
         )
       : 0;
+
+  // প্রধান বাটন-গুচ্ছ পর্দার বাইরে গেলে নিচের বার দেখাই
+  useEffect(() => {
+    const el = buyRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => setShowBar(!entry.isIntersecting),
+      { threshold: 0 }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
 
   function addSelected() {
     addToCart({
@@ -71,8 +83,6 @@ export default function ProductPurchase({
     );
     window.open(whatsappLink(message), "_blank", "noopener,noreferrer");
   }
-
-  const outOfStock = selected.stock <= 0;
 
   return (
     <div>
@@ -132,7 +142,7 @@ export default function ProductPurchase({
         )}
       </p>
 
-      <div className="mt-6 flex flex-col gap-3 md:max-w-md">
+      <div ref={buyRef} className="mt-6 flex flex-col gap-3 md:max-w-md">
         <button
           type="button"
           onClick={handleBuyNow}
@@ -149,7 +159,11 @@ export default function ProductPurchase({
             disabled={!canAdd}
             className={`${buttonClass("secondary", "lg")} w-full`}
           >
-            {canAdd ? en.product.addToCart : outOfStock ? en.product.outOfStock : en.product.maxInCart}
+            {canAdd
+              ? en.product.addToCart
+              : outOfStock
+                ? en.product.outOfStock
+                : en.product.maxInCart}
           </button>
           <button
             type="button"
@@ -170,6 +184,37 @@ export default function ProductPurchase({
           </Link>
         </p>
       )}
+
+      {/* শুধু মোবাইলে: প্রধান বাটন পর্দার বাইরে গেলে নিচ থেকে উঠে আসে */}
+      <div
+        inert={!showBar}
+        className={[
+          "fixed inset-x-0 bottom-0 z-40 border-t border-gray-200 bg-white px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] shadow-[0_-4px_12px_rgba(0,0,0,0.08)] transition-transform duration-200 md:hidden",
+          showBar ? "translate-y-0" : "translate-y-full",
+        ].join(" ")}
+      >
+        <div className="flex items-center gap-3">
+          <span className="font-heading text-lg font-bold text-brand-teal">
+            {formatPrice(selected.price)}
+          </span>
+          <button
+            type="button"
+            onClick={handleBuyNow}
+            disabled={outOfStock}
+            className={`${buttonClass("primary", "md")} min-w-0 flex-1`}
+          >
+            {outOfStock ? en.product.outOfStock : en.product.buyNow}
+          </button>
+          <button
+            type="button"
+            onClick={handleWhatsApp}
+            aria-label={en.product.whatsapp}
+            className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border-2 border-brand-blue text-brand-blue hover:bg-brand-mist"
+          >
+            <Icon name="chat" size={20} />
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

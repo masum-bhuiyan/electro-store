@@ -162,6 +162,7 @@ export type ProductDetail = {
   brandName: string;
   categoryName: string;
   images: string[];
+  categorySlug: string;
   specs: Record<string, string>;
   warrantyMonths: number;
   variants: ProductVariantItem[];
@@ -198,6 +199,7 @@ export const getProductBySlug = cache(
       brandName: p.brand.name,
       categoryName: p.category.name,
       images: p.images,
+      categorySlug: p.category.slug,
       specs,
       warrantyMonths: p.warrantyMonths,
       variants: p.variants.map((v) => ({
@@ -264,4 +266,13 @@ export async function getSitemapProducts(): Promise<
     orderBy: { updatedAt: "desc" },
     take: 5000,
   });
+}
+// একই ক্যাটাগরির অন্য প্রোডাক্ট (বর্তমানটি বাদে)
+export async function getRelatedProducts(
+  categorySlug: string,
+  excludeId: string,
+  limit = 4
+): Promise<ProductListItem[]> {
+  const { items } = await getProducts({ category: categorySlug });
+  return items.filter((i) => i.id !== excludeId).slice(0, limit);
 }
