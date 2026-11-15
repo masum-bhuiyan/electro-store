@@ -2,7 +2,9 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
+import Icon from "@/components/ui/icon";
 import { formatPrice } from "@/lib/format";
+import { en } from "@/lib/messages";
 
 type Suggestion = {
   name: string;
@@ -17,7 +19,7 @@ export default function ProductFilters({ q }: { q?: string }) {
   const [open, setOpen] = useState(false);
   const boxRef = useRef<HTMLDivElement>(null);
 
-  // টাইপ করা থামার ২৫০ms পর সাজেশন আনি
+  // টাইপ করা থামার ৫০ms পর সাজেশন আনি
   useEffect(() => {
     const term = text.trim();
     if (!term) return;
@@ -34,7 +36,7 @@ export default function ProductFilters({ q }: { q?: string }) {
       } catch {
         // আগের অনুরোধ বাতিল হলে এখানে আসে, সমস্যা নেই
       }
-    }, 250);
+    }, 50);
 
     return () => {
       clearTimeout(timer);
@@ -59,10 +61,20 @@ export default function ProductFilters({ q }: { q?: string }) {
     <form
       action="/products"
       method="get"
+      role="search"
       className="mb-6 flex flex-col gap-3 sm:flex-row"
     >
       <div ref={boxRef} className="relative flex-1">
+        <label htmlFor="product-search" className="sr-only">
+          {en.list.searchLabel}
+        </label>
+        <Icon
+          name="search"
+          size={20}
+          className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-500"
+        />
         <input
+          id="product-search"
           type="search"
           name="q"
           value={text}
@@ -76,26 +88,28 @@ export default function ProductFilters({ q }: { q?: string }) {
           onKeyDown={(e) => {
             if (e.key === "Escape") setOpen(false);
           }}
-          placeholder="প্রোডাক্টের নাম লিখুন"
-          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+          placeholder={en.list.searchPlaceholder}
+          className="h-12 w-full rounded-lg border-2 border-gray-300 bg-white pl-10 pr-3 text-base text-brand-teal placeholder:text-gray-500 focus:border-brand-blue"
         />
 
         {showList && (
-          <ul className="absolute z-10 mt-1 w-full overflow-hidden rounded-md border border-gray-200 bg-white shadow-lg">
+          <ul className="absolute z-20 mt-1 w-full overflow-hidden rounded-lg border border-gray-200 bg-white shadow-lg">
             {suggestions.map((s) => (
               <li key={s.slug}>
                 <Link
                   href={`/products/${s.slug}`}
                   onClick={() => setOpen(false)}
-                  className="flex items-center justify-between gap-3 px-3 py-2 text-sm hover:bg-gray-50"
+                  className="flex min-h-11 items-center justify-between gap-3 px-3 py-2 hover:bg-brand-mist"
                 >
-                  <span>
-                    <span className="block font-medium">{s.name}</span>
-                    <span className="block text-xs text-gray-500">
+                  <span className="min-w-0">
+                    <span className="block truncate text-sm font-semibold text-brand-teal">
+                      {s.name}
+                    </span>
+                    <span className="block text-xs font-semibold text-brand-blue">
                       {s.brandName}
                     </span>
                   </span>
-                  <span className="shrink-0 text-sm font-medium">
+                  <span className="shrink-0 text-sm font-bold text-brand-teal">
                     {formatPrice(s.price)}
                   </span>
                 </Link>
@@ -105,20 +119,20 @@ export default function ProductFilters({ q }: { q?: string }) {
         )}
       </div>
 
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-4">
         <button
           type="submit"
-          className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+          className="inline-flex h-12 items-center justify-center rounded-lg bg-brand-teal px-6 text-base font-bold text-white transition hover:brightness-125"
         >
-          খুঁজুন
+          {en.list.search}
         </button>
         {q && (
           <Link
             href="/products"
             onClick={() => setText("")}
-            className="text-sm text-gray-500 hover:text-red-600"
+            className="text-sm font-semibold text-gray-600 underline hover:text-brand-blue"
           >
-            মুছে ফেলুন
+            {en.list.clear} 
           </Link>
         )}
       </div>

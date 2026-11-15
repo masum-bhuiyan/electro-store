@@ -1,5 +1,6 @@
-import Header from "@/components/store/header";
+import CartDrawer from "@/components/store/cartDrawer";
 import Footer from "@/components/store/footer";
+import Header from "@/components/store/header";
 
 export default function StoreLayout({
   children,
@@ -11,6 +12,7 @@ export default function StoreLayout({
       <Header />
       <main className="mx-auto min-h-[60vh] max-w-6xl px-4 py-8">{children}</main>
       <Footer />
+      <CartDrawer />
     </>
   );
 }

@@ -9,6 +9,7 @@ export type CartItem = {
   variantLabel: string;
   price: number;
   stock: number;
+  image?: string; // ছবির লিংক (ঐচ্ছিক, তাই পুরোনো কার্টও চলবে)
   quantity: number;
 };
 
@@ -33,6 +34,7 @@ function isValidItem(x: unknown): x is CartItem {
     typeof i.variantLabel === "string" &&
     typeof i.price === "number" &&
     typeof i.stock === "number" &&
+    (i.image === undefined || typeof i.image === "string") &&
     typeof i.quantity === "number" &&
     i.quantity > 0
   );

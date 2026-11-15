@@ -276,3 +276,37 @@ export async function getRelatedProducts(
   const { items } = await getProducts({ category: categorySlug });
   return items.filter((i) => i.id !== excludeId).slice(0, limit);
 }
+// কার্টের ড্রয়ারে "Customers also buy": কার্টের পণ্যের ক্যাটাগরি থেকে, না পেলে নতুন প্রোডাক্ট
+export async function getSuggestedProducts(
+  variantIds: string[],
+  limit = 3
+): Promise<ProductListItem[]> {
+  const rows = await prisma.productVariant.findMany({
+    where: { id: { in: variantIds } },
+    select: {
+      productId: true,
+      product: { select: { category: { select: { slug: true } } } },
+    },
+  });
+
+  const seen = new Set(rows.map((r) => r.productId));
+  const slugs = [...new Set(rows.map((r) => r.product.category.slug))].slice(0, 3);
+  const picked: ProductListItem[] = [];
+
+  function take(list: ProductListItem[]) {
+    for (const p of list) {
+      if (picked.length >= limit) return;
+      if (seen.has(p.id) || !p.inStock || !p.variant) continue;
+      seen.add(p.id);
+      picked.push(p);
+    }
+  }
+
+  for (const slug of slugs) {
+    if (picked.length >= limit) break;
+    take((await getProducts({ category: slug })).items);
+  }
+  if (picked.length < limit) take((await getProducts({})).items);
+
+  return picked;
+}

@@ -1,5 +1,6 @@
-import Header from "@/components/store/header";
+import CartDrawer from "@/components/store/cartDrawer";
 import Footer from "@/components/store/footer";
+import Header from "@/components/store/header";
 
 export default function HomeLayout({
   children,
@@ -11,6 +12,7 @@ export default function HomeLayout({
       <Header />
       <main className="min-h-[60vh]">{children}</main>
       <Footer />
+      <CartDrawer />
     </>
   );
 }

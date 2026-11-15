@@ -6,7 +6,9 @@ const PATHS = {
   chat: ["M21 12a8 8 0 01-11.7 7L4 20l1.2-4.6A8 8 0 1121 12z"],
   cart: ["M3 4h2l2.5 11h10l2-8H6.5", "M9 18.5a1.5 1.5 0 100 3 1.5 1.5 0 000-3z", "M17 18.5a1.5 1.5 0 100 3 1.5 1.5 0 000-3z"],
   check: ["M5 12.5l4.5 4.5L19 7.5"],
-    tool: ["M14 6a4 4 0 005 5l-9 9a2 2 0 01-3-3z"],
+  tool: ["M14 6a4 4 0 005 5l-9 9a2 2 0 01-3-3z"],
+  search: ["M11 4a7 7 0 100 14 7 7 0 000-14z", "M21 21l-5-5"],
+  close: ["M6 6l12 12", "M18 6L6 18"],
 } as const;
 
 export type IconName = keyof typeof PATHS;

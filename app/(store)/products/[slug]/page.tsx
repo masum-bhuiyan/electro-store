@@ -88,6 +88,7 @@ export default async function ProductDetailPage({ params }: Props) {
               productName={product.name}
               slug={product.slug}
               variants={product.variants}
+              image={product.images.find((src) => isAllowedImageUrl(src)) ?? null}
             />
           </div>
 

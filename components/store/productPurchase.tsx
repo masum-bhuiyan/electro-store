@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import Icon from "@/components/ui/icon";
 import { buttonClass } from "@/components/ui/button";
+import { openCartDrawer } from "@/lib/cart-drawer";
 import { formatPrice } from "@/lib/format";
 import { addToCart, MAX_PER_ITEM, useCart } from "@/lib/cart-store";
 import { en } from "@/lib/messages";
@@ -16,10 +17,12 @@ export default function ProductPurchase({
   productName,
   slug,
   variants,
+  image,
 }: {
   productName: string;
   slug: string;
   variants: ProductVariantItem[];
+  image?: string | null;
 }) {
   const router = useRouter();
   const buyRef = useRef<HTMLDivElement>(null);
@@ -65,6 +68,7 @@ export default function ProductPurchase({
       variantLabel: variantLabel(selected),
       price: selected.price,
       stock: selected.stock,
+       ...(image ? { image } : {}),
     });
   }
 
@@ -72,6 +76,10 @@ export default function ProductPurchase({
     // কার্টে আগে থেকে থাকলে আবার যোগ করি না, যাতে পরিমাণ অজান্তে না বাড়ে
     if (inCart === 0) addSelected();
     router.push("/checkout");
+  }
+    function handleAddToCart() {
+    addSelected();
+    openCartDrawer();
   }
 
   function handleWhatsApp() {
@@ -155,7 +163,7 @@ export default function ProductPurchase({
         <div className="grid grid-cols-2 gap-3">
           <button
             type="button"
-            onClick={addSelected}
+            onClick={handleAddToCart}
             disabled={!canAdd}
             className={`${buttonClass("secondary", "lg")} w-full`}
           >
