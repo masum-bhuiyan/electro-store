@@ -11,8 +11,8 @@ export const SHOP_PHONE_2 = "01840-016930";
 export const SHOP_EMAIL = "bhuiyantools@gmail.com";
 
 // social লিংক। খালি থাকলে footer-এ আইকন দেখাবে না। পেজের আসল লিংক পেলে বসান
-export const FACEBOOK_URL = "";
-export const YOUTUBE_URL = "";
+export const FACEBOOK_URL = "https://www.facebook.com/profile.php?id=61593687496203";
+export const YOUTUBE_URL = "https://www.youtube.com/@bhuiyantelecom5810";
 
 // "01741-850132" থেকে ড্যাশ বাদ দিয়ে tel: লিংকের জন্য
 export function telHref(phone: string): string {

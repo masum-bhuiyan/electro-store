@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import BrandStrip from "@/components/store/brandStrip";
 import CategoryGrid from "@/components/store/categoryGrid";
 import Hero from "@/components/store/hero";
 import ProductCard from "@/components/store/productCard";
+import YoutubeSection from "@/components/store/youtubeSection";
 import { en } from "@/lib/messages";
 import { SHOP_NAME } from "@/lib/site";
 import { getStoreCategories } from "@/modules/catalog/queries";
@@ -64,6 +66,9 @@ export default async function HomePage() {
           </p>
         </div>
       </section>
+
+      <BrandStrip />
+      <YoutubeSection />
     </>
   );
 }

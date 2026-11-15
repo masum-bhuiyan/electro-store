@@ -467,4 +467,16 @@ export const en = {
       },
     },
   },
+    brands: {
+    title: "Authorized Brands",
+  },
+  videos: {
+    title: "Watch & Learn",
+    text: "Real demos and honest reviews on our YouTube channel, made for technicians.",
+    channel: "Watch on YouTube",
+    defaultTitle: "video",
+    play: (title: string) => `Play ${title}`,
+    prev: "Previous videos",
+    next: "Next videos",
+  },
 } as const;
