@@ -1,7 +1,7 @@
 import { randomInt } from "node:crypto";
 import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
-import { getShippingFee } from "@/lib/shipping";
+import { getZoneFee, zoneAddressLabel } from "@/lib/shipping";
 import { variantLabel } from "./preview-cart";
 import type { CartLineInput, ValidCustomer } from "./validation";
 
@@ -135,7 +135,7 @@ export async function createOrder(params: {
           );
         }
 
-        const shippingFee = new Prisma.Decimal(getShippingFee(customer.division));
+       const shippingFee = new Prisma.Decimal(getZoneFee(customer.zone));
         const total = subtotal.add(shippingFee);
         const orderNumber = makeOrderNumber();
 
@@ -146,12 +146,11 @@ export async function createOrder(params: {
             idempotencyKey,
             customerName: customer.name,
             phone: customer.phone,
-            address: `${customer.details}, ${customer.area}, ${customer.district}, ${customer.division} বিভাগ`,
+            address: `${customer.address} (${zoneAddressLabel(customer.zone)})`,
             paymentMethod: "COD",
             subtotal,
             shippingFee,
             total,
-            notes: customer.notes,
             items: {
               create: lines.map((l) => ({
                 variantId: l.variantId,

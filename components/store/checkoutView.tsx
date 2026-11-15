@@ -1,10 +1,10 @@
 "use client";
+/* eslint-disable @next/next/no-img-element */
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { formatPrice } from "@/lib/format";
-import { DIVISIONS, getShippingFee, isDivision } from "@/lib/shipping";
+import { buttonClass } from "@/components/ui/button";
 import {
   clearCart,
   MAX_PER_ITEM,
@@ -13,24 +13,30 @@ import {
   useHydrated,
 } from "@/lib/cart-store";
 import {
+  clearSavedCustomer,
+  loadSavedCustomer,
+  saveCustomer,
+} from "@/lib/customer-memory";
+import { formatPrice } from "@/lib/format";
+import { imageUrl, isAllowedImageUrl } from "@/lib/images";
+import { en } from "@/lib/messages";
+import { getZoneFee, isZone, ZONES, type Zone } from "@/lib/shipping";
+import {
   placeOrderAction,
   previewCartAction,
 } from "@/app/(store)/checkout/actions";
 import type { CartPreview } from "@/modules/orders/preview-cart";
 import type { CustomerInput, FieldErrors } from "@/modules/orders/validation";
 
-const EMPTY_FORM: CustomerInput = {
-  name: "",
-  phone: "",
-  division: "",
-  district: "",
-  area: "",
-  details: "",
-  notes: "",
+const EMPTY_FORM: CustomerInput = { name: "", phone: "", address: "", zone: "" };
+
+const ZONE_TEXT: Record<Zone, string> = {
+  dhaka: en.checkout.insideDhaka,
+  outside: en.checkout.outsideDhaka,
 };
 
 const inputClass =
-  "w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-600 focus:outline-none";
+  "w-full rounded-lg border-2 border-gray-300 bg-white px-3 py-3 text-base text-brand-teal placeholder:text-gray-500 focus:border-brand-blue";
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
 
@@ -45,32 +51,35 @@ function makeKey(): string {
 function Field({
   label,
   error,
-  optional,
   children,
 }: {
   label: string;
   error?: string;
-  optional?: boolean;
   children: React.ReactNode;
 }) {
   return (
     <label className="block">
-      <span className="mb-1 block text-sm font-medium text-gray-700">
-        {label}
-        {optional && <span className="ml-1 font-normal text-gray-400">(ঐচ্ছিক)</span>}
-      </span>
+      <span className="mb-1 block text-sm font-semibold text-brand-teal">{label}</span>
       {children}
-      {error && <span className="mt-1 block text-sm text-red-600">{error}</span>}
+      {error && (
+        <span role="alert" className="mt-1 block text-sm font-semibold text-red-700">
+          {error}
+        </span>
+      )}
     </label>
   );
 }
 
 export default function CheckoutView() {
   const hydrated = useHydrated();
-    const router = useRouter();
+  const router = useRouter();
   const { items } = useCart();
 
-  const [form, setForm] = useState<CustomerInput>(EMPTY_FORM);
+  // আগের অর্ডারের তথ্য এই ডিভাইসে থাকলে ফর্ম আগে থেকেই ভরা থাকবে
+  const [form, setForm] = useState<CustomerInput>(
+    () => loadSavedCustomer() ?? EMPTY_FORM
+  );
+  const [remember, setRemember] = useState(true);
   const [errors, setErrors] = useState<FieldErrors>({});
   const [formError, setFormError] = useState<string | null>(null);
 
@@ -108,19 +117,15 @@ export default function CheckoutView() {
         for (const item of items) {
           const f = freshById.get(item.variantId);
           if (!f) {
-            found.push(`"${item.name}" আর পাওয়া যায় না, কার্ট থেকে সরানো হয়েছে।`);
+            found.push(en.checkout.gone(item.name));
           } else if (f.stock <= 0) {
-            found.push(`"${item.name}" এখন স্টকে নেই, কার্ট থেকে সরানো হয়েছে।`);
+            found.push(en.checkout.outOfStock(item.name));
           } else {
             if (item.quantity > Math.min(f.stock, MAX_PER_ITEM)) {
-              found.push(
-                `"${item.name}" এর স্টকে মাত্র ${f.stock}টি আছে, সংখ্যা কমানো হয়েছে।`
-              );
+              found.push(en.checkout.reduced(item.name, f.stock));
             }
             if (f.price !== item.price) {
-              found.push(
-                `"${item.name}" এর দাম বদলে ${formatPrice(f.price)} হয়েছে।`
-              );
+              found.push(en.checkout.priceChanged(item.name, formatPrice(f.price)));
             }
           }
         }
@@ -158,8 +163,10 @@ export default function CheckoutView() {
         .filter((l) => l.quantity > 0)
     : [];
 
+  const imageById = new Map(items.map((i) => [i.variantId, i.image]));
+
   const subtotal = round2(buyLines.reduce((sum, l) => sum + l.price * l.quantity, 0));
-  const shippingFee = isDivision(form.division) ? getShippingFee(form.division) : null;
+  const shippingFee = isZone(form.zone) ? getZoneFee(form.zone) : null;
   const total = shippingFee === null ? null : round2(subtotal + shippingFee);
 
   function setField(name: keyof CustomerInput, value: string) {
@@ -185,7 +192,11 @@ export default function CheckoutView() {
         idempotencyKey: keyRef.current,
       });
 
-            if (result.ok) {
+      if (result.ok) {
+        // অর্ডার হয়ে গেলে পরের বারের জন্য তথ্য এই ডিভাইসে রাখি (বা মুছি)
+        if (remember) saveCustomer(form);
+        else clearSavedCustomer();
+
         setPlaced({ orderNumber: result.orderNumber, total: result.total });
         clearCart();
         router.push(`/order/success/${result.orderNumber}`);
@@ -195,12 +206,12 @@ export default function CheckoutView() {
       setFormError(result.message);
       if (result.code === "INVALID_INPUT") {
         setErrors(result.fieldErrors);
-       } else if (result.code !== "SERVER_ERROR" && result.code !== "RATE_LIMITED") {
+      } else if (result.code !== "SERVER_ERROR" && result.code !== "RATE_LIMITED") {
         // দাম বা স্টক বদলেছে: নতুন করে সার্ভার থেকে দেখে নিই
         setRefreshTick((t) => t + 1);
       }
     } catch {
-      setFormError("সংযোগে সমস্যা হয়েছে। ইন্টারনেট দেখে আবার চেষ্টা করুন।");
+      setFormError(en.checkout.networkError);
     } finally {
       submitLock.current = false;
       setSubmitting(false);
@@ -209,8 +220,8 @@ export default function CheckoutView() {
 
   const noticeBox =
     notices.length > 0 ? (
-      <div className="mb-6 rounded-md border border-yellow-300 bg-yellow-50 p-4 text-sm text-yellow-900">
-        <p className="font-medium">কার্টে কিছু পরিবর্তন হয়েছে:</p>
+      <div className="mb-6 rounded-xl border border-yellow-300 bg-yellow-50 p-4 text-sm text-yellow-900">
+        <p className="font-semibold">{en.checkout.changed}</p>
         <ul className="mt-2 list-disc pl-5">
           {notices.map((n, i) => (
             <li key={i}>{n}</li>
@@ -219,27 +230,29 @@ export default function CheckoutView() {
       </div>
     ) : null;
 
-    if (placed) {
+  if (placed) {
     return (
-      <div className="mx-auto max-w-lg rounded-lg border border-green-200 bg-green-50 p-8 text-center">
-        <p className="text-4xl">✅</p>
-        <h2 className="mt-3 text-xl font-bold">অর্ডার গ্রহণ করা হয়েছে</h2>
-        <p className="mt-3 text-sm text-gray-700">
-          অর্ডার নম্বর: <span className="font-mono font-bold">{placed.orderNumber}</span>
+      <div className="mx-auto max-w-lg rounded-2xl border border-green-200 bg-green-50 p-8 text-center">
+        <h2 className="font-heading text-xl font-semibold text-brand-teal">
+          {en.checkout.received}
+        </h2>
+        <p className="mt-3 text-sm text-gray-800">
+          {en.checkout.orderNumber}:{" "}
+          <span className="font-mono font-bold">{placed.orderNumber}</span>
         </p>
-        <p className="mt-3 text-sm text-gray-600">নিশ্চিতকরণ পেজ খুলছে...</p>
+        <p className="mt-3 text-sm text-gray-700">{en.checkout.opening}</p>
         <Link
           href={`/order/success/${placed.orderNumber}`}
-          className="mt-4 inline-block text-sm text-blue-600 underline"
+          className="mt-4 inline-block text-sm font-semibold text-brand-blue underline"
         >
-          পেজ না খুললে এখানে চাপুন
+          {en.checkout.notOpening}
         </Link>
       </div>
     );
   }
 
   if (!hydrated) {
-    return <p className="py-10 text-center text-gray-400">লোড হচ্ছে...</p>;
+    return <p className="py-10 text-center text-gray-600">{en.checkout.loading}</p>;
   }
 
   if (items.length === 0) {
@@ -247,12 +260,9 @@ export default function CheckoutView() {
       <div>
         {noticeBox}
         <div className="py-16 text-center">
-          <p className="text-lg text-gray-600">চেকআউটের জন্য কার্টে কিছু নেই।</p>
-          <Link
-            href="/products"
-            className="mt-4 inline-block rounded-md bg-blue-600 px-5 py-2 text-sm font-medium text-white hover:bg-blue-700"
-          >
-            কেনাকাটা শুরু করুন
+          <p className="text-lg text-gray-700">{en.checkout.empty}</p>
+          <Link href="/products" className={`${buttonClass("primary", "lg")} mt-5`}>
+            {en.checkout.startShopping}
           </Link>
         </div>
       </div>
@@ -262,23 +272,23 @@ export default function CheckoutView() {
   if (loadError) {
     return (
       <div className="py-10 text-center">
-        <p className="text-gray-600">কার্টের তথ্য আনা যায়নি।</p>
+        <p className="text-gray-700">{en.checkout.loadFail}</p>
         <button
           type="button"
           onClick={() => {
             setLoadError(false);
             setRefreshTick((t) => t + 1);
           }}
-          className="mt-4 rounded-md bg-blue-600 px-5 py-2 text-sm font-medium text-white hover:bg-blue-700"
+          className={`${buttonClass("primary", "md")} mt-4`}
         >
-          আবার চেষ্টা করুন
+          {en.checkout.retry}
         </button>
       </div>
     );
   }
 
   if (!preview) {
-    return <p className="py-10 text-center text-gray-400">কার্ট যাচাই হচ্ছে...</p>;
+    return <p className="py-10 text-center text-gray-600">{en.checkout.verifying}</p>;
   }
 
   return (
@@ -286,135 +296,180 @@ export default function CheckoutView() {
       {noticeBox}
 
       <form onSubmit={handleSubmit} className="grid gap-8 lg:grid-cols-3">
-        <div className="space-y-4 lg:col-span-2">
-          <h2 className="text-lg font-bold">ডেলিভারির তথ্য</h2>
+        <div className="space-y-5 lg:col-span-2">
+          <h2 className="font-heading text-lg font-semibold text-brand-teal">
+            {en.checkout.deliveryDetails}
+          </h2>
 
-          <Field label="আপনার নাম" error={errors.name}>
+          <Field label={en.checkout.name} error={errors.name}>
             <input
               type="text"
+              name="name"
               value={form.name}
               maxLength={80}
               autoComplete="name"
+              aria-invalid={Boolean(errors.name)}
               onChange={(e) => setField("name", e.target.value)}
               className={inputClass}
             />
           </Field>
 
-          <Field label="মোবাইল নম্বর" error={errors.phone}>
+          <Field label={en.checkout.phone} error={errors.phone}>
             <input
               type="tel"
+              name="phone"
               inputMode="tel"
               value={form.phone}
               maxLength={20}
               autoComplete="tel"
-              placeholder="01XXXXXXXXX"
+              placeholder={en.checkout.phonePlaceholder}
+              aria-invalid={Boolean(errors.phone)}
               onChange={(e) => setField("phone", e.target.value)}
               className={inputClass}
             />
           </Field>
 
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Field label="বিভাগ" error={errors.division}>
-              <select
-                value={form.division}
-                onChange={(e) => setField("division", e.target.value)}
-                className={inputClass}
-              >
-                <option value="">বিভাগ বাছাই করুন</option>
-                {DIVISIONS.map((d) => (
-                  <option key={d} value={d}>
-                    {d}
-                  </option>
-                ))}
-              </select>
-            </Field>
-
-            <Field label="জেলা" error={errors.district}>
-              <input
-                type="text"
-                value={form.district}
-                maxLength={50}
-                onChange={(e) => setField("district", e.target.value)}
-                className={inputClass}
-              />
-            </Field>
-          </div>
-
-          <Field label="এলাকা / থানা" error={errors.area}>
-            <input
-              type="text"
-              value={form.area}
-              maxLength={80}
-              onChange={(e) => setField("area", e.target.value)}
-              className={inputClass}
-            />
-          </Field>
-
-          <Field label="বিস্তারিত ঠিকানা" error={errors.details}>
+          <Field label={en.checkout.address} error={errors.address}>
             <textarea
-              value={form.details}
-              maxLength={200}
+              name="address"
+              value={form.address}
+              maxLength={250}
               rows={3}
-              placeholder="বাসা/রোড/গ্রাম, ল্যান্ডমার্ক"
-              onChange={(e) => setField("details", e.target.value)}
+              autoComplete="street-address"
+              placeholder={en.checkout.addressPlaceholder}
+              aria-invalid={Boolean(errors.address)}
+              onChange={(e) => setField("address", e.target.value)}
               className={inputClass}
             />
           </Field>
 
-          <Field label="অর্ডারের নোট" error={errors.notes} optional>
-            <textarea
-              value={form.notes}
-              maxLength={300}
-              rows={2}
-              onChange={(e) => setField("notes", e.target.value)}
-              className={inputClass}
-            />
-          </Field>
+          <fieldset>
+            <legend className="mb-1 text-sm font-semibold text-brand-teal">
+              {en.checkout.area}
+            </legend>
+            <div className="grid gap-3 sm:grid-cols-2">
+              {ZONES.map((z) => {
+                const selected = form.zone === z;
+                return (
+                  <label
+                    key={z}
+                    className={[
+                      "flex min-h-14 cursor-pointer items-center justify-between gap-3 rounded-lg border-2 px-4 py-3 focus-within:ring-2 focus-within:ring-brand-orange",
+                      selected
+                        ? "border-brand-blue bg-brand-mist"
+                        : "border-gray-300 hover:border-brand-blue",
+                    ].join(" ")}
+                  >
+                    <span className="flex items-center gap-3">
+                      <input
+                        type="radio"
+                        name="zone"
+                        value={z}
+                        checked={selected}
+                        onChange={() => setField("zone", z)}
+                        className="h-5 w-5 accent-brand-blue"
+                      />
+                      <span className="font-semibold text-brand-teal">
+                        {ZONE_TEXT[z]}
+                      </span>
+                    </span>
+                    <span className="font-bold text-brand-teal">
+                      {formatPrice(getZoneFee(z))}
+                    </span>
+                  </label>
+                );
+              })}
+            </div>
+            {errors.zone && (
+              <p role="alert" className="mt-1 text-sm font-semibold text-red-700">
+                {errors.zone}
+              </p>
+            )}
+            <p className="mt-2 text-sm text-gray-700">{en.checkout.heavyNote}</p>
+          </fieldset>
 
-          <div className="rounded-md border border-gray-200 bg-gray-50 p-4 text-sm">
-            <p className="font-medium">পেমেন্ট পদ্ধতি</p>
-            <p className="mt-1 text-gray-700">
-              ক্যাশ অন ডেলিভারি (পণ্য হাতে পেয়ে টাকা দিন)
+          <label className="flex min-h-11 cursor-pointer items-center gap-3 text-sm text-gray-800">
+            <input
+              type="checkbox"
+              checked={remember}
+              onChange={(e) => setRemember(e.target.checked)}
+              className="h-5 w-5 accent-brand-blue"
+            />
+            {en.checkout.remember}
+          </label>
+
+          <div className="rounded-xl border border-gray-200 bg-brand-mist p-4 text-sm">
+            <p className="font-semibold text-brand-teal">{en.checkout.payment}</p>
+            <p className="mt-1 text-gray-800">
+              <span className="font-semibold">{en.checkout.codTitle}</span> ·{" "}
+              {en.checkout.codText}
             </p>
           </div>
         </div>
 
-        <aside className="h-fit rounded-lg border border-gray-200 bg-white p-5">
-          <h2 className="text-lg font-bold">অর্ডারের সারসংক্ষেপ</h2>
+        <aside className="h-fit rounded-2xl border border-gray-200 bg-white p-5 lg:sticky lg:top-4">
+          <h2 className="font-heading text-lg font-semibold text-brand-teal">
+            {en.checkout.summary}
+          </h2>
 
           <ul className="mt-4 space-y-3 text-sm">
-            {buyLines.map((l) => (
-              <li key={l.variantId} className="flex justify-between gap-3">
-                <span>
-                  <span className="block font-medium">{l.name}</span>
-                  <span className="block text-xs text-gray-500">
-                    {l.variantLabel} × {l.quantity}
+            {buyLines.map((l) => {
+              const raw = imageById.get(l.variantId);
+              const img = raw && isAllowedImageUrl(raw) ? raw : null;
+              return (
+                <li key={l.variantId} className="flex items-center gap-3">
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-gray-200 bg-white">
+                    {img ? (
+                      <img
+                        src={imageUrl(img, 96)}
+                        alt=""
+                        width={48}
+                        height={48}
+                        loading="lazy"
+                        className="h-full w-full object-contain"
+                      />
+                    ) : (
+                      <span className="font-bold text-gray-300">{l.name[0]}</span>
+                    )}
+                  </div>
+                  <span className="min-w-0 flex-1">
+                    <span className="line-clamp-2 block font-semibold text-brand-teal">
+                      {l.name}
+                    </span>
+                    <span className="block text-xs text-gray-600">
+                      {l.variantLabel} × {l.quantity}
+                    </span>
                   </span>
-                </span>
-                <span className="shrink-0">{formatPrice(l.price * l.quantity)}</span>
-              </li>
-            ))}
+                  <span className="shrink-0 font-semibold text-brand-teal">
+                    {formatPrice(l.price * l.quantity)}
+                  </span>
+                </li>
+              );
+            })}
           </ul>
 
           <div className="mt-4 space-y-2 border-t border-gray-200 pt-4 text-sm">
             <div className="flex justify-between">
-              <span className="text-gray-600">সাবটোটাল</span>
-              <span>{formatPrice(subtotal)}</span>
+              <span className="text-gray-700">{en.checkout.subtotal}</span>
+              <span className="font-semibold text-brand-teal">{formatPrice(subtotal)}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-gray-600">ডেলিভারি চার্জ</span>
-              <span>
-                {shippingFee === null ? "বিভাগ বাছাই করুন" : formatPrice(shippingFee)}
+              <span className="text-gray-700">{en.checkout.delivery}</span>
+              <span className="font-semibold text-brand-teal">
+                {shippingFee === null ? en.checkout.chooseArea : formatPrice(shippingFee)}
               </span>
             </div>
-            <div className="flex justify-between text-base font-bold">
-              <span>মোট</span>
+            <div className="flex justify-between text-base font-bold text-brand-teal">
+              <span>{en.checkout.total}</span>
               <span>{total === null ? "—" : formatPrice(total)}</span>
             </div>
           </div>
 
           {formError && (
-            <p className="mt-4 rounded-md bg-red-50 p-3 text-sm text-red-700">
+            <p
+              role="alert"
+              className="mt-4 rounded-lg bg-red-50 p-3 text-sm font-semibold text-red-800"
+            >
               {formError}
             </p>
           )}
@@ -422,14 +477,14 @@ export default function CheckoutView() {
           <button
             type="submit"
             disabled={submitting || buyLines.length === 0}
-            className="mt-5 w-full rounded-md bg-blue-600 px-6 py-3 font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-gray-300 disabled:text-gray-600"
+            className={`${buttonClass("primary", "lg")} mt-5 w-full`}
           >
-            {submitting ? "অর্ডার হচ্ছে..." : "অর্ডার নিশ্চিত করুন"}
+            {submitting ? en.checkout.placing : en.checkout.placeOrder}
           </button>
 
-          <p className="mt-3 text-center text-xs text-gray-500">
-            <Link href="/cart" className="underline">
-              কার্টে ফিরে যান
+          <p className="mt-3 text-center text-sm">
+            <Link href="/products" className="font-semibold text-brand-blue hover:underline">
+              ← {en.cart.continueShopping}
             </Link>
           </p>
         </aside>

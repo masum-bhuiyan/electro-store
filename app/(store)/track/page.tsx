@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
 import TrackView from "@/components/store/trackView";
+import { en } from "@/lib/messages";
 import { normalizeOrderNumber } from "@/modules/orders/validation";
 
 export const metadata: Metadata = {
-  title: "অর্ডার ট্র্যাক করুন | Electro Store",
+  title: `${en.track.metaTitle} | ${en.shopName}`,
   robots: { index: false, follow: false },
 };
 
@@ -20,7 +21,12 @@ export default async function TrackPage({ searchParams }: Props) {
 
   return (
     <div>
-      <h1 className="mb-6 text-center text-2xl font-bold">অর্ডার ট্র্যাক করুন</h1>
+      <h1 className="text-center font-heading text-2xl font-bold text-brand-teal">
+        {en.track.title}
+      </h1>
+      <p className="mx-auto mb-6 mt-2 max-w-md text-center text-sm text-gray-600">
+        {en.track.intro}
+      </p>
       <TrackView defaultOrderNumber={defaultOrderNumber} />
     </div>
   );

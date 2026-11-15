@@ -1,18 +1,16 @@
-import { isDivision, type Division } from "@/lib/shipping";
+import { isZone, type Zone } from "@/lib/shipping";
 
 // lib/cart-store.ts-এর MAX_PER_ITEM-এর সাথে একই রাখতে হবে
 export const MAX_QTY_PER_ITEM = 10;
 
 export type CartLineInput = { variantId: string; quantity: number };
 
+// চেকআউট ফর্মের তিনটি ঘর + ঢাকার ভেতরে/বাইরে বাছাই
 export type CustomerInput = {
   name: string;
   phone: string;
-  division: string;
-  district: string;
-  area: string;
-  details: string;
-  notes: string;
+  address: string;
+  zone: string;
 };
 
 export type FieldErrors = Partial<Record<keyof CustomerInput, string>>;
@@ -20,11 +18,8 @@ export type FieldErrors = Partial<Record<keyof CustomerInput, string>>;
 export type ValidCustomer = {
   name: string;
   phone: string;
-  division: Division;
-  district: string;
-  area: string;
-  details: string;
-  notes: string | null;
+  address: string;
+  zone: Zone;
 };
 
 export type CustomerValidation =
@@ -62,39 +57,21 @@ export function validateCustomer(input: unknown): CustomerValidation {
     errors.phone = "সঠিক মোবাইল নম্বর দিন (যেমন 01712345678)";
   }
 
-  const division = text(raw.division);
-  if (!isDivision(division)) {
-    errors.division = "বিভাগ বাছাই করুন";
+  const address = text(raw.address);
+  if (address.length < 10 || address.length > 250) {
+    errors.address = "বাসা/রোড, এলাকা ও জেলাসহ পুরো ঠিকানা লিখুন (কমপক্ষে ১০ অক্ষর)";
   }
 
-  const district = text(raw.district);
-  if (district.length < 2 || district.length > 50) {
-    errors.district = "জেলার নাম লিখুন";
+  const zone = text(raw.zone);
+  if (!isZone(zone)) {
+    errors.zone = "ঢাকার ভেতরে না বাইরে, বাছাই করুন";
   }
 
-  const area = text(raw.area);
-  if (area.length < 2 || area.length > 80) {
-    errors.area = "এলাকা বা থানার নাম লিখুন";
-  }
-
-  const details = text(raw.details);
-  if (details.length < 5 || details.length > 200) {
-    errors.details = "বাসা/রোড/গ্রামের বিস্তারিত ঠিকানা লিখুন (কমপক্ষে ৫ অক্ষর)";
-  }
-
-  const notes = text(raw.notes);
-  if (notes.length > 300) {
-    errors.notes = "নোট ৩০০ অক্ষরের বেশি হতে পারবে না";
-  }
-
-  if (Object.keys(errors).length > 0 || !phone || !isDivision(division)) {
+  if (Object.keys(errors).length > 0 || !phone || !isZone(zone)) {
     return { ok: false, errors };
   }
 
-  return {
-    ok: true,
-    data: { name, phone, division, district, area, details, notes: notes || null },
-  };
+  return { ok: true, data: { name, phone, address, zone } };
 }
 
 // ব্রাউজার থেকে আসা কার্টের তালিকা যাচাই করে। একই ভ্যারিয়ান্ট দুইবার থাকলে যোগ করে দেয়
@@ -124,6 +101,7 @@ export function normalizeItems(input: unknown): CartLineInput[] | null {
   }
   return items;
 }
+
 // অর্ডার নম্বরের ফরম্যাট: ES-YYMMDD-XXXXXX (0, 1, I, L, O বাদ)
 const ORDER_NUMBER_PATTERN = /^ES-\d{6}-[ABCDEFGHJKMNPQRSTUVWXYZ2-9]{6}$/;
 

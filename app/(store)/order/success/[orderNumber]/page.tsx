@@ -1,8 +1,12 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import Icon from "@/components/ui/icon";
+import { buttonClass } from "@/components/ui/button";
 import { formatPrice } from "@/lib/format";
-import { paymentMethodLabel } from "@/lib/order-status";
+import { en } from "@/lib/messages";
+import type { PaymentMethodKey } from "@/lib/order-status";
+import { whatsappLink } from "@/lib/whatsapp";
 import { getOrderSummary } from "@/modules/orders/queries";
 import { normalizeOrderNumber } from "@/modules/orders/validation";
 
@@ -10,7 +14,7 @@ export const dynamic = "force-dynamic";
 
 // এই পেজ Google-এ দেখানোর দরকার নেই
 export const metadata: Metadata = {
-  title: "অর্ডার সফল | Electro Store",
+  title: `${en.success.metaTitle} | ${en.shopName}`,
   robots: { index: false, follow: false },
 };
 
@@ -27,37 +31,54 @@ export default async function OrderSuccessPage({ params }: Props) {
   const order = await getOrderSummary(orderNumber);
   if (!order) notFound();
 
+  const method = en.track.paymentMethod[order.paymentMethod as PaymentMethodKey];
+
   return (
-    <div className="mx-auto max-w-lg rounded-lg border border-green-200 bg-green-50 p-8 text-center">
-      <p className="text-4xl">✅</p>
-      <h1 className="mt-3 text-xl font-bold">আপনার অর্ডার গ্রহণ করা হয়েছে</h1>
+    <div className="mx-auto max-w-lg rounded-xl border border-gray-200 bg-white p-6 text-center shadow-sm sm:p-8">
+      <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-green-100 text-green-700">
+        <Icon name="check" size={28} />
+      </span>
 
-      <p className="mt-5 text-sm text-gray-700">অর্ডার নম্বর</p>
-      <p className="font-mono text-2xl font-bold">{order.orderNumber}</p>
+      <h1 className="mt-4 font-heading text-2xl font-bold text-brand-teal">
+        {en.success.title}
+      </h1>
+      <p className="mt-2 text-sm text-gray-600">{en.success.text}</p>
 
-      <p className="mt-3 text-sm text-gray-700">
-        মোট {formatPrice(order.total)} · {paymentMethodLabel(order.paymentMethod)}
-      </p>
+      <div className="mt-6 rounded-lg bg-brand-mist p-4">
+        <p className="text-sm text-gray-600">{en.success.orderNumber}</p>
+        <p className="mt-1 break-all font-mono text-2xl font-bold text-brand-teal">
+          {order.orderNumber}
+        </p>
+        <p className="mt-2 text-sm text-gray-700">
+          {en.success.totalLine(formatPrice(order.total), method)}
+        </p>
+      </div>
 
-      <p className="mt-5 text-sm text-gray-600">
-        অর্ডার নম্বরটি লিখে রাখুন বা স্ক্রিনশট নিন। অর্ডারের অবস্থা দেখতে অর্ডার নম্বরের
-        সাথে আপনার মোবাইল নম্বর লাগবে।
-      </p>
+      <p className="mt-5 text-sm text-gray-600">{en.success.saveNote}</p>
 
-      <div className="mt-6 flex flex-col justify-center gap-3 sm:flex-row">
+      <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-center">
         <Link
           href={`/track?order=${order.orderNumber}`}
-          className="rounded-md bg-blue-600 px-5 py-2 text-sm font-medium text-white hover:bg-blue-700"
+          className={buttonClass("primary", "lg")}
         >
-          অর্ডার ট্র্যাক করুন
+          {en.success.track}
         </Link>
-        <Link
-          href="/products"
-          className="rounded-md border border-gray-300 bg-white px-5 py-2 text-sm font-medium hover:bg-gray-50"
-        >
-          কেনাকাটা চালিয়ে যান
+        <Link href="/products" className={buttonClass("secondary", "lg")}>
+          {en.success.continueShopping}
         </Link>
       </div>
+
+      <p className="mt-6 text-sm text-gray-600">
+        {en.success.help}{" "}
+        <a
+          href={whatsappLink(en.success.whatsappMessage(order.orderNumber))}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex min-h-11 items-center font-medium text-brand-blue underline"
+        >
+          {en.success.whatsapp}
+        </a>
+      </p>
     </div>
   );
 }

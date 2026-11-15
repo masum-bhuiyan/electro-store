@@ -2,18 +2,17 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import Icon from "@/components/ui/icon";
+import { buttonClass } from "@/components/ui/button";
 import { formatPrice } from "@/lib/format";
-import {
-  ORDER_STEPS,
-  orderStatusLabel,
-  paymentMethodLabel,
-  paymentStatusLabel,
-} from "@/lib/order-status";
+import { en } from "@/lib/messages";
+import { ORDER_STEPS } from "@/lib/order-status";
+import { whatsappLink } from "@/lib/whatsapp";
 import { trackOrderAction } from "@/app/(store)/track/actions";
 import type { TrackedOrder } from "@/modules/orders/queries";
 
 const inputClass =
-  "w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-600 focus:outline-none";
+  "h-11 w-full rounded-lg border border-gray-300 bg-white px-3 text-base text-brand-teal placeholder:text-gray-500";
 
 export default function TrackView({
   defaultOrderNumber,
@@ -42,7 +41,7 @@ export default function TrackView({
         setError(result.message);
       }
     } catch {
-      setError("সংযোগে সমস্যা হয়েছে। ইন্টারনেট দেখে আবার চেষ্টা করুন।");
+      setError(en.track.networkError);
     } finally {
       setLoading(false);
     }
@@ -54,17 +53,17 @@ export default function TrackView({
     <div className="mx-auto max-w-2xl">
       <form
         onSubmit={handleSubmit}
-        className="space-y-4 rounded-lg border border-gray-200 bg-white p-5"
+        className="space-y-4 rounded-xl border border-gray-200 bg-white p-5 shadow-sm"
       >
         <label className="block">
           <span className="mb-1 block text-sm font-medium text-gray-700">
-            অর্ডার নম্বর
+            {en.track.orderNumber}
           </span>
           <input
             type="text"
             value={orderNumber}
             maxLength={30}
-            placeholder="ES-261010-K7M3QX"
+            placeholder={en.track.orderPlaceholder}
             autoComplete="off"
             onChange={(e) => setOrderNumber(e.target.value)}
             className={`${inputClass} font-mono uppercase`}
@@ -73,14 +72,14 @@ export default function TrackView({
 
         <label className="block">
           <span className="mb-1 block text-sm font-medium text-gray-700">
-            অর্ডারের সময় দেওয়া মোবাইল নম্বর
+            {en.track.phone}
           </span>
           <input
             type="tel"
             inputMode="tel"
             value={phone}
             maxLength={20}
-            placeholder="01XXXXXXXXX"
+            placeholder={en.track.phonePlaceholder}
             autoComplete="tel"
             onChange={(e) => setPhone(e.target.value)}
             className={inputClass}
@@ -88,27 +87,34 @@ export default function TrackView({
         </label>
 
         {error && (
-          <p className="rounded-md bg-red-50 p-3 text-sm text-red-700">{error}</p>
+          <p
+            role="alert"
+            className="rounded-lg bg-red-50 p-3 text-sm text-red-700"
+          >
+            {error}
+          </p>
         )}
 
         <button
           type="submit"
           disabled={loading}
-          className="w-full rounded-md bg-blue-600 px-6 py-3 font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-gray-300 disabled:text-gray-600"
+          className={`${buttonClass("primary", "lg")} w-full`}
         >
-          {loading ? "খোঁজা হচ্ছে..." : "অর্ডার খুঁজুন"}
+          {loading ? en.track.searching : en.track.submit}
         </button>
       </form>
 
       {order && (
-        <div className="mt-8 rounded-lg border border-gray-200 bg-white p-5">
+        <div className="mt-8 rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
-              <p className="text-sm text-gray-500">অর্ডার নম্বর</p>
-              <p className="font-mono text-lg font-bold">{order.orderNumber}</p>
-              <p className="mt-1 text-xs text-gray-500">
-                অর্ডারের সময়:{" "}
-                {new Date(order.createdAt).toLocaleString("bn-BD", {
+              <p className="text-sm text-gray-600">{en.track.orderNumber}</p>
+              <p className="break-all font-mono text-lg font-bold text-brand-teal">
+                {order.orderNumber}
+              </p>
+              <p className="mt-1 text-xs text-gray-600">
+                {en.track.placedOn}{" "}
+                {new Date(order.createdAt).toLocaleString("en-GB", {
                   dateStyle: "medium",
                   timeStyle: "short",
                   timeZone: "Asia/Dhaka",
@@ -119,40 +125,43 @@ export default function TrackView({
               className={
                 order.status === "CANCELLED"
                   ? "rounded-full bg-red-100 px-3 py-1 text-sm font-medium text-red-700"
-                  : "rounded-full bg-blue-100 px-3 py-1 text-sm font-medium text-blue-700"
+                  : "rounded-full bg-brand-mist px-3 py-1 text-sm font-medium text-brand-teal"
               }
             >
-              {orderStatusLabel(order.status)}
+              {en.track.status[order.status]}
             </span>
           </div>
 
           {order.status === "CANCELLED" ? (
-            <p className="mt-5 rounded-md bg-red-50 p-3 text-sm text-red-700">
-              এই অর্ডারটি বাতিল করা হয়েছে।
+            <p className="mt-5 rounded-lg bg-red-50 p-3 text-sm text-red-700">
+              {en.track.cancelled}
             </p>
           ) : (
             <ol className="mt-6 flex items-start">
               {ORDER_STEPS.map((step, index) => {
                 const done = index <= currentStep;
                 return (
-                  <li key={step} className="flex flex-1 flex-col items-center text-center">
+                  <li
+                    key={step}
+                    className="flex flex-1 flex-col items-center text-center"
+                  >
                     <span
                       className={
                         done
-                          ? "flex h-8 w-8 items-center justify-center rounded-full bg-blue-600 text-sm font-bold text-white"
-                          : "flex h-8 w-8 items-center justify-center rounded-full bg-gray-200 text-sm font-bold text-gray-500"
+                          ? "flex h-9 w-9 items-center justify-center rounded-full bg-brand-teal text-sm font-bold text-white"
+                          : "flex h-9 w-9 items-center justify-center rounded-full bg-gray-200 text-sm font-bold text-gray-600"
                       }
                     >
-                      {done ? "✓" : index + 1}
+                      {done ? <Icon name="check" size={18} /> : index + 1}
                     </span>
                     <span
                       className={
                         done
-                          ? "mt-2 text-xs font-medium text-gray-900"
-                          : "mt-2 text-xs text-gray-500"
+                          ? "mt-2 text-xs font-medium text-brand-teal"
+                          : "mt-2 text-xs text-gray-600"
                       }
                     >
-                      {orderStatusLabel(step)}
+                      {en.track.status[step]}
                     </span>
                   </li>
                 );
@@ -164,9 +173,11 @@ export default function TrackView({
             {order.items.map((item, i) => (
               <li key={i} className="flex justify-between gap-3 py-3">
                 <span>
-                  <span className="block font-medium">{item.name}</span>
-                  <span className="block text-xs text-gray-500">
-                    {formatPrice(item.unitPrice)} × {item.quantity}
+                  <span className="block font-medium text-brand-teal">
+                    {item.name}
+                  </span>
+                  <span className="block text-xs text-gray-600">
+                    {en.track.itemTimes(formatPrice(item.unitPrice), item.quantity)}
                   </span>
                 </span>
                 <span className="shrink-0">
@@ -178,32 +189,43 @@ export default function TrackView({
 
           <div className="space-y-2 border-t border-gray-200 pt-4 text-sm">
             <div className="flex justify-between">
-              <span className="text-gray-600">সাবটোটাল</span>
+              <span className="text-gray-600">{en.track.subtotal}</span>
               <span>{formatPrice(order.subtotal)}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-gray-600">ডেলিভারি চার্জ</span>
+              <span className="text-gray-600">{en.track.delivery}</span>
               <span>{formatPrice(order.shippingFee)}</span>
             </div>
-            <div className="flex justify-between text-base font-bold">
-              <span>মোট</span>
+            <div className="flex justify-between text-base font-bold text-brand-teal">
+              <span>{en.track.total}</span>
               <span>{formatPrice(order.total)}</span>
             </div>
             <p className="pt-2 text-gray-600">
-              পেমেন্ট: {paymentMethodLabel(order.paymentMethod)} ·{" "}
-              {paymentStatusLabel(order.paymentStatus)}
+              {en.track.payment}: {en.track.paymentMethod[order.paymentMethod]} ·{" "}
+              {en.track.paymentStatus[order.paymentStatus]}
             </p>
           </div>
 
-          <p className="mt-5 text-center text-xs text-gray-500">
-            কোনো প্রশ্ন থাকলে অর্ডার নম্বরটি জানিয়ে আমাদের সাথে যোগাযোগ করুন।
-          </p>
+          <div className="mt-5 border-t border-gray-200 pt-5 text-center">
+            <p className="text-sm text-gray-600">{en.track.helpText}</p>
+            <a
+              href={whatsappLink(en.track.whatsappMessage(order.orderNumber))}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={`${buttonClass("secondary", "md")} mt-3`}
+            >
+              {en.track.whatsapp}
+            </a>
+          </div>
         </div>
       )}
 
       <p className="mt-6 text-center text-sm">
-        <Link href="/products" className="text-gray-500 underline hover:text-blue-600">
-          কেনাকাটা চালিয়ে যান
+        <Link
+          href="/products"
+          className="inline-flex min-h-11 items-center text-brand-blue underline"
+        >
+          {en.track.continueShopping}
         </Link>
       </p>
     </div>
