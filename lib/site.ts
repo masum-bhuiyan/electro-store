@@ -4,5 +4,17 @@ export const SITE_URL = raw.replace(/\/+$/, "");
 
 export const SHOP_NAME = "Bhuiyan Tools";
 
-// দোকানের ফোন নম্বর। খালি থাকলে footer-এ কিছু দেখায় না। লঞ্চের আগে নিজের নম্বর বসান
+// প্রধান নম্বর (WhatsApp-এও এটাই) আর দ্বিতীয় নম্বর
 export const SHOP_PHONE = "01741-850132";
+export const SHOP_PHONE_2 = "01840-016930";
+
+export const SHOP_EMAIL = "bhuiyantools@gmail.com";
+
+// social লিংক। খালি থাকলে footer-এ আইকন দেখাবে না। পেজের আসল লিংক পেলে বসান
+export const FACEBOOK_URL = "";
+export const YOUTUBE_URL = "";
+
+// "01741-850132" থেকে ড্যাশ বাদ দিয়ে tel: লিংকের জন্য
+export function telHref(phone: string): string {
+  return `tel:${phone.replace(/[^0-9+]/g, "")}`;
+}

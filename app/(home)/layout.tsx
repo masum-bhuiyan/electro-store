@@ -1,6 +1,7 @@
 import CartDrawer from "@/components/store/cartDrawer";
 import Footer from "@/components/store/footer";
 import Header from "@/components/store/header";
+import WhatsAppFloat from "@/components/store/whatsappFloat";
 
 export default function HomeLayout({
   children,
@@ -13,6 +14,7 @@ export default function HomeLayout({
       <main className="min-h-[60vh]">{children}</main>
       <Footer />
       <CartDrawer />
+      <WhatsAppFloat />
     </>
   );
 }
