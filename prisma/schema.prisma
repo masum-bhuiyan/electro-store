@@ -10,6 +10,9 @@ datasource db {
 enum Role {
   CUSTOMER
   ADMIN
+  MANAGER
+  SALES
+  ACCOUNTS
 }
 
 enum OrderStatus {
@@ -48,6 +51,7 @@ model User {
   email     String?   @unique
   password  String?
   role      Role      @default(CUSTOMER)
+  isActive  Boolean   @default(true)
   addresses Address[]
   orders    Order[]
   createdAt DateTime  @default(now())

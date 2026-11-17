@@ -3,6 +3,12 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { cache } from "react";
 import { prisma } from "@/lib/prisma";
+import {
+  hasPermission,
+  isStaffRole,
+  type Permission,
+  type StaffRole,
+} from "@/lib/permissions";
 
 const COOKIE_NAME = "es_session";
 const SESSION_DAYS = 7;
@@ -43,33 +49,73 @@ export async function destroySession(): Promise<void> {
   jar.delete(COOKIE_NAME);
 }
 
-export type AdminUser = { id: string; name: string; email: string | null };
+export type StaffUser = {
+  id: string;
+  name: string;
+  email: string | null;
+  role: StaffRole;
+};
 
+// আগের নামটা রেখেছি, যাতে পুরোনো ফাইলের import না ভাঙে
+export type AdminUser = StaffUser;
+
+// যেকোনো সক্রিয় কর্মচারী (মালিক, ম্যানেজার, সেলস, একাউন্টস)।
 // cache() দিয়ে মুড়েছি: একই অনুরোধে layout আর page দুজনে ডাকলেও ডাটাবেসে একবারই যায়
-export const getCurrentAdmin = cache(async (): Promise<AdminUser | null> => {
+export const getCurrentStaff = cache(async (): Promise<StaffUser | null> => {
   const jar = await cookies();
   const token = jar.get(COOKIE_NAME)?.value;
   if (!token || token.length > 100) return null;
 
   const session = await prisma.session.findUnique({
     where: { tokenHash: hashToken(token) },
-    include: { user: { select: { id: true, name: true, email: true, role: true } } },
+    include: {
+      user: {
+        select: { id: true, name: true, email: true, role: true, isActive: true },
+      },
+    },
   });
 
   if (!session) return null;
   if (session.expiresAt <= new Date()) return null;
-  if (session.user.role !== "ADMIN") return null;
+  // বন্ধ করা কর্মচারীর পুরোনো session দিয়েও ঢোকা যাবে না
+  if (!session.user.isActive) return null;
+  // CUSTOMER role-এর কেউ কখনো অ্যাডমিনে ঢুকতে পারবে না
+  if (!isStaffRole(session.user.role)) return null;
 
   return {
     id: session.user.id,
     name: session.user.name,
     email: session.user.email,
+    role: session.user.role,
   };
 });
 
-// অ্যাডমিন না হলে লগইন পেজে পাঠায়। প্রতিটা অ্যাডমিন পেজ ও Server Action-এর শুরুতে ডাকুন
-export async function requireAdmin(): Promise<AdminUser> {
+// শুধু মালিক (ADMIN)। আগের আচরণ অপরিবর্তিত
+export const getCurrentAdmin = cache(async (): Promise<StaffUser | null> => {
+  const staff = await getCurrentStaff();
+  if (!staff || staff.role !== "ADMIN") return null;
+  return staff;
+});
+
+// মালিক না হলে লগইন পেজে পাঠায়। বিদ্যমান সব অ্যাডমিন পেজ ও Server Action এটাই ডাকছে
+export async function requireAdmin(): Promise<StaffUser> {
   const admin = await getCurrentAdmin();
   if (!admin) redirect("/admin/login");
   return admin;
+}
+
+// যেকোনো কর্মচারী হলেই চলবে (ধাপ ১D থেকে ব্যবহার হবে)
+export async function requireStaff(): Promise<StaffUser> {
+  const staff = await getCurrentStaff();
+  if (!staff) redirect("/admin/login");
+  return staff;
+}
+
+// নির্দিষ্ট অনুমতি না থাকলে ড্যাশবোর্ডে ফেরত পাঠায় (ধাপ ১D থেকে ব্যবহার হবে)
+export async function requirePermission(
+  permission: Permission
+): Promise<StaffUser> {
+  const staff = await requireStaff();
+  if (!hasPermission(staff.role, permission)) redirect("/admin");
+  return staff;
 }

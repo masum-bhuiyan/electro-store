@@ -13,8 +13,11 @@ export async function loginAdmin(
   const user = await prisma.user.findUnique({ where: { email } });
   const now = new Date();
 
-  // অ্যাডমিন ছাড়া বা পাসওয়ার্ডবিহীন কেউ ঢুকতে পারবে না
-  const admin = user && user.role === "ADMIN" && user.password ? user : null;
+    // মালিক ছাড়া, বন্ধ করা বা পাসওয়ার্ডবিহীন কেউ ঢুকতে পারবে না (অন্য role ১D-তে খুলবে)
+    const admin =
+    user && user.role === "ADMIN" && user.isActive && user.password
+      ? user
+      : null;
 
   // অ্যাডমিন না পেলেও একই সময় নেওয়ার জন্য নকল hash দিয়ে মেলাই
   const hash = admin?.password ?? (await getDummyHash());

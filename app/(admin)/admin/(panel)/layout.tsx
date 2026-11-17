@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { logoutAction } from "@/app/(admin)/admin/actions";
 import { requireAdmin } from "@/modules/auth/session";
+import { ROLE_LABELS } from "@/lib/permissions";
 
 export default async function PanelLayout({
   children,
@@ -35,7 +36,9 @@ export default async function PanelLayout({
           </nav>
 
           <div className="flex items-center gap-3 text-sm">
-            <span className="text-gray-600">{admin.name}</span>
+                        <span className="text-gray-600">
+              {admin.name} ({ROLE_LABELS[admin.role]})
+            </span>
             <form action={logoutAction}>
               <button
                 type="submit"
