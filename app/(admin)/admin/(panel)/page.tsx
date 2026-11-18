@@ -4,16 +4,13 @@ import { requireStaff } from "@/modules/auth/session";
 
 export const dynamic = "force-dynamic";
 
-type Card = { label: string; value: number; href: string | null };
+type Card = { label: string; value: number; href: string };
 
 export default async function AdminDashboardPage() {
   // ড্যাশবোর্ড সব কর্মচারীর জন্য খোলা। কোন কার্ড দেখাবে তা পারমিশন ঠিক করে
   const staff = await requireStaff();
   const can = (p: (typeof staff.permissions)[number]) =>
     staff.permissions.includes(p);
-
-  // সাময়িক: স্টক পেজ এখনো শুধু মালিকের (ধাপ 1D-3-এ মুছে যাবে)
-  const ownerPagesReady = staff.role === "ADMIN";
 
   const stats = await getDashboardStats();
 
@@ -39,7 +36,7 @@ export default async function AdminDashboardPage() {
     cards.push({
       label: "কম স্টকের ভ্যারিয়ান্ট",
       value: stats.lowStockVariants,
-      href: ownerPagesReady ? "/admin/stock?low=1" : null,
+      href: "/admin/stock?low=1",
     });
   }
 
@@ -55,27 +52,16 @@ export default async function AdminDashboardPage() {
         </p>
       ) : (
         <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-          {cards.map((c) => {
-            const inner = (
-              <>
-                <p className="text-sm text-gray-500">{c.label}</p>
-                <p className="mt-2 text-3xl font-bold">{c.value}</p>
-              </>
-            );
-            return c.href ? (
-              <Link
-                key={c.label}
-                href={c.href}
-                className={`${cardClass} hover:border-blue-600`}
-              >
-                {inner}
-              </Link>
-            ) : (
-              <div key={c.label} className={cardClass}>
-                {inner}
-              </div>
-            );
-          })}
+          {cards.map((c) => (
+            <Link
+              key={c.label}
+              href={c.href}
+              className={`${cardClass} hover:border-blue-600`}
+            >
+              <p className="text-sm text-gray-500">{c.label}</p>
+              <p className="mt-2 text-3xl font-bold">{c.value}</p>
+            </Link>
+          ))}
         </div>
       )}
 

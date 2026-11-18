@@ -1,6 +1,6 @@
 "use server";
 
-import { requireAdmin } from "@/modules/auth/session";
+import { requirePermission } from "@/modules/auth/session";
 import { adjustStock } from "@/modules/inventory/adjust-stock";
 import { validateAdjustment } from "@/modules/inventory/validation";
 
@@ -11,7 +11,7 @@ export type AdjustActionResult =
 export async function adjustStockAction(
   payload: unknown
 ): Promise<AdjustActionResult> {
-  const admin = await requireAdmin();
+  const staff = await requirePermission("stock.adjust");
 
   const checked = validateAdjustment(payload);
   if (!checked.ok) {
@@ -22,7 +22,7 @@ export async function adjustStockAction(
     };
   }
 
-  const result = await adjustStock(checked.data, admin.name);
+  const result = await adjustStock(checked.data, staff.name);
   return result.ok
     ? { ok: true, newStock: result.newStock }
     : { ok: false, message: result.message };

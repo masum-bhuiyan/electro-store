@@ -1,11 +1,11 @@
 import CatalogManager from "@/components/admin/catalogManager";
-import { requireAdmin } from "@/modules/auth/session";
+import { requirePermission } from "@/modules/auth/session";
 import { getCatalogItems } from "@/modules/catalog/admin";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminCatalogPage() {
-  await requireAdmin();
+  await requirePermission("catalog.manage");
   const { categories, brands } = await getCatalogItems();
 
   return (

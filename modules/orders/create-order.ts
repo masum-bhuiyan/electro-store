@@ -9,7 +9,7 @@ export type CreateOrderResult =
   | { ok: true; orderNumber: string; total: number }
   | {
       ok: false;
-            code:
+      code:
         | "UNAVAILABLE"
         | "OUT_OF_STOCK"
         | "PRICE_CHANGED"
@@ -50,6 +50,7 @@ async function findByKey(idempotencyKey: string) {
     select: { orderNumber: true, total: true },
   });
 }
+
 // ভুয়া অর্ডার ঠেকানোর সীমা
 const MAX_ORDERS_PER_HOUR = 3;
 const MAX_PENDING_PER_PHONE = 3;
@@ -82,14 +83,19 @@ export async function createOrder(params: {
   // একই key দিয়ে অর্ডার আগেই হয়ে থাকলে নতুন না বানিয়ে আগেরটাই দিই
   const existing = await findByKey(idempotencyKey);
   if (existing) {
-    return { ok: true, orderNumber: existing.orderNumber, total: Number(existing.total) };
+    return {
+      ok: true,
+      orderNumber: existing.orderNumber,
+      total: Number(existing.total),
+    };
   }
 
   try {
-        const limitMessage = await phoneLimitMessage(customer.phone);
+    const limitMessage = await phoneLimitMessage(customer.phone);
     if (limitMessage) {
       return { ok: false, code: "RATE_LIMITED", message: limitMessage };
     }
+
     const order = await prisma.$transaction(
       async (tx) => {
         // ১. ডাটাবেস থেকে আসল দাম ও তথ্য আনি
@@ -102,7 +108,7 @@ export async function createOrder(params: {
         });
         const byId = new Map(variants.map((v) => [v.id, v]));
 
-        // variantId অনুযায়ী সাজাই, নিচে কারণ বলা আছে
+        // variantId অনুযায়ী সাজাই, যাতে দুটো অর্ডার একে অপরকে আটকে না দেয়
         const lines = items
           .map((item) => {
             const v = byId.get(item.variantId);
@@ -135,11 +141,12 @@ export async function createOrder(params: {
           );
         }
 
-       const shippingFee = new Prisma.Decimal(getZoneFee(customer.zone));
+        const shippingFee = new Prisma.Decimal(getZoneFee(customer.zone));
         const total = subtotal.add(shippingFee);
         const orderNumber = makeOrderNumber();
 
         // ৩. অর্ডার ও অর্ডারের আইটেম তৈরি
+        // listPrice, shippingZone, originalShippingFee রাখি, যাতে পরে দাম বদলালে মূল তথ্য হারায় না
         const created = await tx.order.create({
           data: {
             orderNumber,
@@ -150,12 +157,15 @@ export async function createOrder(params: {
             paymentMethod: "COD",
             subtotal,
             shippingFee,
+            shippingZone: customer.zone,
+            originalShippingFee: shippingFee,
             total,
             items: {
               create: lines.map((l) => ({
                 variantId: l.variantId,
                 name: l.name,
                 unitPrice: l.unitPrice,
+                listPrice: l.unitPrice,
                 quantity: l.quantity,
               })),
             },
@@ -190,7 +200,11 @@ export async function createOrder(params: {
       { maxWait: 5000, timeout: 15000 }
     );
 
-    return { ok: true, orderNumber: order.orderNumber, total: Number(order.total) };
+    return {
+      ok: true,
+      orderNumber: order.orderNumber,
+      total: Number(order.total),
+    };
   } catch (e) {
     if (e instanceof OrderError) {
       return { ok: false, code: e.code, message: e.message };
@@ -200,7 +214,11 @@ export async function createOrder(params: {
     try {
       const again = await findByKey(idempotencyKey);
       if (again) {
-        return { ok: true, orderNumber: again.orderNumber, total: Number(again.total) };
+        return {
+          ok: true,
+          orderNumber: again.orderNumber,
+          total: Number(again.total),
+        };
       }
     } catch {
       // নিচের সাধারণ বার্তায় যাব

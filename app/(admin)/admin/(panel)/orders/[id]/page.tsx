@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import OrderEditForm from "@/components/admin/orderEditForm";
 import OrderStatusBadge from "@/components/admin/orderStatusBadge";
 import OrderStatusControl from "@/components/admin/orderStatusControl";
 import { formatDateTime, formatPrice } from "@/lib/format";
@@ -16,6 +17,7 @@ type Props = {
 export default async function AdminOrderDetailPage({ params }: Props) {
   const staff = await requirePermission("orders.view");
   const canManage = staff.permissions.includes("orders.manage");
+  const canEditPrice = staff.permissions.includes("orders.editPrice");
 
   const { id } = await params;
   if (!id || id.length > 50) notFound();
@@ -24,6 +26,7 @@ export default async function AdminOrderDetailPage({ params }: Props) {
   if (!order) notFound();
 
   const warn = order.samePhone.cancelled >= 2;
+  const editable = order.status === "PENDING" || order.status === "CONFIRMED";
 
   return (
     <div>
@@ -58,19 +61,39 @@ export default async function AdminOrderDetailPage({ params }: Props) {
           <section className="rounded-lg border border-gray-200 bg-white p-5">
             <h2 className="mb-3 text-lg font-bold">পণ্য</h2>
             <ul className="divide-y divide-gray-200 text-sm">
-              {order.items.map((item, i) => (
-                <li key={i} className="flex justify-between gap-3 py-3">
-                  <span>
-                    <span className="block font-medium">{item.name}</span>
-                    <span className="block text-xs text-gray-500">
-                      {formatPrice(item.unitPrice)} × {item.quantity}
+              {order.items.map((item) => {
+                const hasDiscount =
+                  item.listPrice !== null && item.listPrice > item.unitPrice;
+                const percent = hasDiscount
+                  ? Math.round(
+                      ((item.listPrice! - item.unitPrice) / item.listPrice!) * 100
+                    )
+                  : 0;
+                return (
+                  <li key={item.id} className="flex justify-between gap-3 py-3">
+                    <span>
+                      <span className="block font-medium">{item.name}</span>
+                      <span className="block text-xs text-gray-500">
+                        {formatPrice(item.unitPrice)} × {item.quantity}
+                        {hasDiscount && (
+                          <>
+                            {" "}
+                            <span className="line-through">
+                              {formatPrice(item.listPrice!)}
+                            </span>{" "}
+                            <span className="font-medium text-green-700">
+                              ({percent}% ছাড়)
+                            </span>
+                          </>
+                        )}
+                      </span>
                     </span>
-                  </span>
-                  <span className="shrink-0">
-                    {formatPrice(item.unitPrice * item.quantity)}
-                  </span>
-                </li>
-              ))}
+                    <span className="shrink-0">
+                      {formatPrice(item.unitPrice * item.quantity)}
+                    </span>
+                  </li>
+                );
+              })}
             </ul>
 
             <div className="mt-2 space-y-2 border-t border-gray-200 pt-4 text-sm">
@@ -80,7 +103,15 @@ export default async function AdminOrderDetailPage({ params }: Props) {
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-600">ডেলিভারি চার্জ</span>
-                <span>{formatPrice(order.shippingFee)}</span>
+                <span>
+                  {formatPrice(order.shippingFee)}
+                  {order.originalShippingFee !== null &&
+                    order.originalShippingFee !== order.shippingFee && (
+                      <span className="ml-2 text-xs text-gray-500">
+                        (ক্রেতা দেখেছিল {formatPrice(order.originalShippingFee)})
+                      </span>
+                    )}
+                </span>
               </div>
               <div className="flex justify-between text-base font-bold">
                 <span>মোট</span>
@@ -88,6 +119,45 @@ export default async function AdminOrderDetailPage({ params }: Props) {
               </div>
             </div>
           </section>
+
+          {canEditPrice && editable && (
+            <section className="rounded-lg border border-gray-200 bg-white p-5">
+              <h2 className="mb-1 text-lg font-bold">দাম ও ডেলিভারি এডিট</h2>
+              <p className="mb-4 text-sm text-gray-500">
+                ছাড় দিতে বা ডেলিভারি চার্জ ঠিক করতে এখানে বদলান। প্রতিটা বদল লগে থাকবে।
+              </p>
+              <OrderEditForm
+                orderId={order.id}
+                items={order.items.map((i) => ({
+                  id: i.id,
+                  name: i.name,
+                  unitPrice: i.unitPrice,
+                  quantity: i.quantity,
+                }))}
+                zone={order.zone}
+                shippingFee={order.shippingFee}
+              />
+            </section>
+          )}
+
+          {order.edits.length > 0 && (
+            <section className="rounded-lg border border-gray-200 bg-white p-5">
+              <h2 className="mb-3 text-lg font-bold">বদলের লগ</h2>
+              <ul className="divide-y divide-gray-200 text-sm">
+                {order.edits.map((e) => (
+                  <li key={e.id} className="py-3">
+                    <p className="text-xs text-gray-500">
+                      {formatDateTime(e.createdAt)} · {e.staffName}
+                    </p>
+                    <p className="mt-1 whitespace-pre-line">{e.summary}</p>
+                    {e.reason && (
+                      <p className="mt-1 text-gray-600">কারণ: {e.reason}</p>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
         </div>
 
         <aside className="space-y-6">

@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import StockAdjustForm from "@/components/admin/stockAdjustForm";
 import { formatDateTime } from "@/lib/format";
 import { stockReasonLabel } from "@/lib/stock";
-import { requireAdmin } from "@/modules/auth/session";
+import { requirePermission } from "@/modules/auth/session";
 import { getStockDetail } from "@/modules/inventory/admin";
 
 export const dynamic = "force-dynamic";
@@ -13,7 +13,9 @@ type Props = {
 };
 
 export default async function AdminStockDetailPage({ params }: Props) {
-  await requireAdmin();
+  const staff = await requirePermission("stock.view");
+  const canAdjust = staff.permissions.includes("stock.adjust");
+  const canEditProduct = staff.permissions.includes("products.edit");
 
   const { variantId } = await params;
   if (!variantId || variantId.length > 50) notFound();
@@ -38,14 +40,16 @@ export default async function AdminStockDetailPage({ params }: Props) {
           </span>
         )}
       </p>
-      <p className="mt-1 text-sm">
-        <Link
-          href={`/admin/products/${detail.productId}`}
-          className="text-blue-600 underline"
-        >
-          প্রোডাক্ট সম্পাদনা
-        </Link>
-      </p>
+      {canEditProduct && (
+        <p className="mt-1 text-sm">
+          <Link
+            href={`/admin/products/${detail.productId}`}
+            className="text-blue-600 underline"
+          >
+            প্রোডাক্ট সম্পাদনা
+          </Link>
+        </p>
+      )}
 
       <div className="mt-6 grid gap-6 lg:grid-cols-3">
         <section className="rounded-lg border border-gray-200 bg-white p-5 lg:col-span-1">
@@ -53,7 +57,13 @@ export default async function AdminStockDetailPage({ params }: Props) {
           <p className="mt-1 text-4xl font-bold">{detail.stock}</p>
 
           <h2 className="mb-3 mt-6 text-lg font-bold">স্টক বদলান</h2>
-          <StockAdjustForm variantId={detail.id} currentStock={detail.stock} />
+          {canAdjust ? (
+            <StockAdjustForm variantId={detail.id} currentStock={detail.stock} />
+          ) : (
+            <p className="text-sm text-gray-500">
+              স্টক বদলানোর অনুমতি আপনার নেই।
+            </p>
+          )}
         </section>
 
         <section className="rounded-lg border border-gray-200 bg-white p-5 lg:col-span-2">

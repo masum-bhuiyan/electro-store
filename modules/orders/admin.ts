@@ -1,10 +1,12 @@
 import type { Prisma } from "@/generated/prisma/client";
+import { currentZone } from "@/lib/order-zone";
 import type {
   OrderStatusKey,
   PaymentMethodKey,
   PaymentStatusKey,
 } from "@/lib/order-status";
 import { prisma } from "@/lib/prisma";
+import type { Zone } from "@/lib/shipping";
 import { normalizePhone } from "./validation";
 
 export const ORDERS_PAGE_SIZE = 20;
@@ -41,10 +43,25 @@ export type AdminOrderDetail = {
   notes: string | null;
   subtotal: number;
   shippingFee: number;
+  originalShippingFee: number | null;
+  zone: Zone | null;
   total: number;
   createdAt: string;
   updatedAt: string;
-  items: { name: string; unitPrice: number; quantity: number }[];
+  items: {
+    id: string;
+    name: string;
+    unitPrice: number;
+    listPrice: number | null;
+    quantity: number;
+  }[];
+  edits: {
+    id: string;
+    staffName: string;
+    summary: string;
+    reason: string | null;
+    createdAt: string;
+  }[];
   samePhone: { total: number; cancelled: number };
 };
 
@@ -123,9 +140,16 @@ export async function getAdminOrder(
     where: { id },
     include: {
       items: {
-        select: { name: true, unitPrice: true, quantity: true },
+        select: {
+          id: true,
+          name: true,
+          unitPrice: true,
+          listPrice: true,
+          quantity: true,
+        },
         orderBy: { id: "asc" },
       },
+      edits: { orderBy: { createdAt: "desc" }, take: 50 },
     },
   });
 
@@ -148,13 +172,27 @@ export async function getAdminOrder(
     notes: order.notes,
     subtotal: Number(order.subtotal),
     shippingFee: Number(order.shippingFee),
+    originalShippingFee:
+      order.originalShippingFee === null
+        ? null
+        : Number(order.originalShippingFee),
+    zone: currentZone(order.shippingZone, order.address),
     total: Number(order.total),
     createdAt: order.createdAt.toISOString(),
     updatedAt: order.updatedAt.toISOString(),
     items: order.items.map((i) => ({
+      id: i.id,
       name: i.name,
       unitPrice: Number(i.unitPrice),
+      listPrice: i.listPrice === null ? null : Number(i.listPrice),
       quantity: i.quantity,
+    })),
+    edits: order.edits.map((e) => ({
+      id: e.id,
+      staffName: e.staffName,
+      summary: e.summary,
+      reason: e.reason,
+      createdAt: e.createdAt.toISOString(),
     })),
     samePhone: { total: phoneTotal, cancelled: phoneCancelled },
   };

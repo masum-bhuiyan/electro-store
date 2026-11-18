@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { requireAdmin } from "@/modules/auth/session";
+import { requirePermission } from "@/modules/auth/session";
 import { LOW_STOCK_LIMIT } from "@/modules/admin/stats";
 import { getStockList } from "@/modules/inventory/admin";
 
@@ -14,7 +14,8 @@ function first(value: string | string[] | undefined): string | undefined {
 }
 
 export default async function AdminStockPage({ searchParams }: Props) {
-  await requireAdmin();
+  const staff = await requirePermission("stock.view");
+  const canAdjust = staff.permissions.includes("stock.adjust");
 
   const sp = await searchParams;
   const q = first(sp.q)?.trim().slice(0, 50) || undefined;
@@ -119,7 +120,7 @@ export default async function AdminStockPage({ searchParams }: Props) {
                       href={`/admin/stock/${v.id}`}
                       className="text-blue-600 underline"
                     >
-                      বদলান
+                      {canAdjust ? "বদলান" : "ইতিহাস"}
                     </Link>
                   </td>
                 </tr>

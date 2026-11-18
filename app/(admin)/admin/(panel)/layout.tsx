@@ -12,10 +12,6 @@ export default async function PanelLayout({
   const can = (p: (typeof staff.permissions)[number]) =>
     staff.permissions.includes(p);
 
-  // সাময়িক: স্টক ও ক্যাটাগরি পেজ এখনো শুধু মালিকের (requireAdmin)।
-  // ধাপ 1D-3 শেষ হলে এই ভেরিয়েবল মুছে শুধু পারমিশন দিয়ে চেক হবে
-  const ownerPagesReady = staff.role === "ADMIN";
-
   return (
     <div className="min-h-screen bg-gray-50">
       <header className="border-b border-gray-200 bg-white">
@@ -34,12 +30,12 @@ export default async function PanelLayout({
                 প্রোডাক্ট
               </Link>
             )}
-            {ownerPagesReady && can("stock.view") && (
+            {can("stock.view") && (
               <Link href="/admin/stock" className="hover:text-blue-600">
                 স্টক
               </Link>
             )}
-            {ownerPagesReady && can("catalog.manage") && (
+            {can("catalog.manage") && (
               <Link href="/admin/catalog" className="hover:text-blue-600">
                 ক্যাটাগরি ও ব্র্যান্ড
               </Link>

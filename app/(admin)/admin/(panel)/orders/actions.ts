@@ -1,11 +1,13 @@
 "use server";
 
 import { isOrderStatus } from "@/lib/order-status";
+import { requirePermission } from "@/modules/auth/session";
+import { editOrder, type EditResult } from "@/modules/orders/admin-edit";
 import {
   changeOrderStatus,
   type StatusChangeResult,
 } from "@/modules/orders/admin-mutations";
-import { requirePermission } from "@/modules/auth/session";
+import { validateOrderEdit } from "@/modules/orders/edit-validation";
 
 export async function changeOrderStatusAction(
   id: unknown,
@@ -22,4 +24,18 @@ export async function changeOrderStatusAction(
   }
 
   return changeOrderStatus(orderId, status);
+}
+
+export async function editOrderAction(payload: unknown): Promise<EditResult> {
+  const staff = await requirePermission("orders.editPrice");
+
+  const checked = validateOrderEdit(payload);
+  if (!checked.ok) {
+    return {
+      ok: false,
+      message: checked.errors.form ?? "ফর্মের লাল ঘরগুলো ঠিক করুন।",
+      errors: checked.errors,
+    };
+  }
+  return editOrder(checked.data, staff.name);
 }

@@ -1,6 +1,6 @@
 "use server";
 
-import { requireAdmin } from "@/modules/auth/session";
+import { requirePermission } from "@/modules/auth/session";
 import {
   createCatalogItem,
   deleteCatalogItem,
@@ -21,7 +21,7 @@ export async function createCatalogItemAction(
   kind: unknown,
   payload: unknown
 ): Promise<CatalogActionResult> {
-  await requireAdmin();
+  await requirePermission("catalog.manage");
 
   if (!isKind(kind)) return { ok: false, message: "অনুরোধে সমস্যা হয়েছে।" };
 
@@ -40,7 +40,7 @@ export async function deleteCatalogItemAction(
   kind: unknown,
   id: unknown
 ): Promise<CatalogResult> {
-  await requireAdmin();
+  await requirePermission("catalog.manage");
 
   if (!isKind(kind) || typeof id !== "string" || !id || id.length > 50) {
     return { ok: false, message: "অনুরোধে সমস্যা হয়েছে।" };
