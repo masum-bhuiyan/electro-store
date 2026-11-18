@@ -52,6 +52,8 @@ model User {
   password  String?
   role      Role      @default(CUSTOMER)
   isActive  Boolean   @default(true)
+  extraPermissions  String[]  @default([])
+  deniedPermissions String[]  @default([])
   addresses Address[]
   orders    Order[]
   createdAt DateTime  @default(now())

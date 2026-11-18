@@ -4,7 +4,7 @@ import OrderStatusBadge from "@/components/admin/orderStatusBadge";
 import OrderStatusControl from "@/components/admin/orderStatusControl";
 import { formatDateTime, formatPrice } from "@/lib/format";
 import { paymentMethodLabel, paymentStatusLabel } from "@/lib/order-status";
-import { requireAdmin } from "@/modules/auth/session";
+import { requirePermission } from "@/modules/auth/session";
 import { getAdminOrder } from "@/modules/orders/admin";
 
 export const dynamic = "force-dynamic";
@@ -14,7 +14,8 @@ type Props = {
 };
 
 export default async function AdminOrderDetailPage({ params }: Props) {
-  await requireAdmin();
+  const staff = await requirePermission("orders.view");
+  const canManage = staff.permissions.includes("orders.manage");
 
   const { id } = await params;
   if (!id || id.length > 50) notFound();
@@ -45,7 +46,13 @@ export default async function AdminOrderDetailPage({ params }: Props) {
         <div className="space-y-6 lg:col-span-2">
           <section className="rounded-lg border border-gray-200 bg-white p-5">
             <h2 className="mb-3 text-lg font-bold">অবস্থা বদলান</h2>
-            <OrderStatusControl orderId={order.id} status={order.status} />
+            {canManage ? (
+              <OrderStatusControl orderId={order.id} status={order.status} />
+            ) : (
+              <p className="text-sm text-gray-500">
+                অর্ডারের অবস্থা বদলানোর অনুমতি আপনার নেই।
+              </p>
+            )}
           </section>
 
           <section className="rounded-lg border border-gray-200 bg-white p-5">

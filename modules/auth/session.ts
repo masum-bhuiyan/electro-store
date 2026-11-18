@@ -2,13 +2,13 @@ import { createHash, randomBytes } from "node:crypto";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { cache } from "react";
-import { prisma } from "@/lib/prisma";
 import {
-  hasPermission,
+  computeEffectivePermissions,
   isStaffRole,
   type Permission,
   type StaffRole,
 } from "@/lib/permissions";
+import { prisma } from "@/lib/prisma";
 
 const COOKIE_NAME = "es_session";
 const SESSION_DAYS = 7;
@@ -54,6 +54,7 @@ export type StaffUser = {
   name: string;
   email: string | null;
   role: StaffRole;
+  permissions: Permission[];
 };
 
 // আগের নামটা রেখেছি, যাতে পুরোনো ফাইলের import না ভাঙে
@@ -70,7 +71,15 @@ export const getCurrentStaff = cache(async (): Promise<StaffUser | null> => {
     where: { tokenHash: hashToken(token) },
     include: {
       user: {
-        select: { id: true, name: true, email: true, role: true, isActive: true },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          role: true,
+          isActive: true,
+          extraPermissions: true,
+          deniedPermissions: true,
+        },
       },
     },
   });
@@ -82,11 +91,17 @@ export const getCurrentStaff = cache(async (): Promise<StaffUser | null> => {
   // CUSTOMER role-এর কেউ কখনো অ্যাডমিনে ঢুকতে পারবে না
   if (!isStaffRole(session.user.role)) return null;
 
+  const role = session.user.role;
   return {
     id: session.user.id,
     name: session.user.name,
     email: session.user.email,
-    role: session.user.role,
+    role,
+    permissions: computeEffectivePermissions(
+      role,
+      session.user.extraPermissions,
+      session.user.deniedPermissions
+    ),
   };
 });
 
@@ -116,6 +131,6 @@ export async function requirePermission(
   permission: Permission
 ): Promise<StaffUser> {
   const staff = await requireStaff();
-  if (!hasPermission(staff.role, permission)) redirect("/admin");
+  if (!staff.permissions.includes(permission)) redirect("/admin");
   return staff;
 }

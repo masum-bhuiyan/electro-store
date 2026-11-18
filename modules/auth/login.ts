@@ -1,3 +1,4 @@
+import { isStaffRole } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
 import { getDummyHash, verifyPassword } from "@/lib/password";
 import { createSession } from "./session";
@@ -13,31 +14,31 @@ export async function loginAdmin(
   const user = await prisma.user.findUnique({ where: { email } });
   const now = new Date();
 
-    // মালিক ছাড়া, বন্ধ করা বা পাসওয়ার্ডবিহীন কেউ ঢুকতে পারবে না (অন্য role ১D-তে খুলবে)
-    const admin =
-    user && user.role === "ADMIN" && user.isActive && user.password
+  // কর্মচারী role (মালিক, ম্যানেজার, সেলস, একাউন্টস), সক্রিয় এবং পাসওয়ার্ড আছে, এমন কেউই ঢুকতে পারবে
+  const staff =
+    user && isStaffRole(user.role) && user.isActive && user.password
       ? user
       : null;
 
-  // অ্যাডমিন না পেলেও একই সময় নেওয়ার জন্য নকল hash দিয়ে মেলাই
-  const hash = admin?.password ?? (await getDummyHash());
+  // কর্মচারী না পেলেও একই সময় নেওয়ার জন্য নকল hash দিয়ে মেলাই
+  const hash = staff?.password ?? (await getDummyHash());
   const passwordOk = await verifyPassword(password, hash);
 
-  if (!admin) return false;
+  if (!staff) return false;
 
   // লক থাকলে সঠিক পাসওয়ার্ডেও ঢোকা যাবে না
-  if (admin.lockedUntil && admin.lockedUntil > now) return false;
+  if (staff.lockedUntil && staff.lockedUntil > now) return false;
 
   if (!passwordOk) {
     const updated = await prisma.user.update({
-      where: { id: admin.id },
+      where: { id: staff.id },
       data: { failedLogins: { increment: 1 } },
       select: { failedLogins: true },
     });
 
     if (updated.failedLogins >= MAX_FAILS) {
       await prisma.user.update({
-        where: { id: admin.id },
+        where: { id: staff.id },
         data: {
           failedLogins: 0,
           lockedUntil: new Date(now.getTime() + LOCK_MINUTES * 60 * 1000),
@@ -48,9 +49,9 @@ export async function loginAdmin(
   }
 
   await prisma.user.update({
-    where: { id: admin.id },
+    where: { id: staff.id },
     data: { failedLogins: 0, lockedUntil: null },
   });
-  await createSession(admin.id);
+  await createSession(staff.id);
   return true;
 }

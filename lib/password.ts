@@ -1,4 +1,4 @@
-import { randomBytes, scrypt, timingSafeEqual } from "node:crypto";
+import { randomBytes, randomInt, scrypt, timingSafeEqual } from "node:crypto";
 
 // scrypt-এর সেটিংস। এগুলো hash-এর ভেতরেই লেখা থাকে, তাই পরে বাড়ানো যাবে
 const N = 16384;
@@ -56,4 +56,14 @@ let dummyHash: Promise<string> | null = null;
 export function getDummyHash(): Promise<string> {
   if (!dummyHash) dummyHash = hashPassword("not-a-real-password");
   return dummyHash;
+}
+// 0/O, 1/l/I-এর মতো গুলিয়ে যাওয়া অক্ষর বাদ দিয়েছি, যাতে কর্মচারী ভুল না পড়ে
+const PASSWORD_CHARS = "abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+
+export function generatePassword(length = 12): string {
+  let out = "";
+  for (let i = 0; i < length; i++) {
+    out += PASSWORD_CHARS[randomInt(PASSWORD_CHARS.length)];
+  }
+  return out;
 }

@@ -8,7 +8,7 @@ import {
   paymentMethodLabel,
   type OrderStatusKey,
 } from "@/lib/order-status";
-import { requireAdmin } from "@/modules/auth/session";
+import { requirePermission } from "@/modules/auth/session";
 import { getAdminOrders, getOrderStatusCounts } from "@/modules/orders/admin";
 
 export const dynamic = "force-dynamic";
@@ -22,7 +22,7 @@ function first(value: string | string[] | undefined): string | undefined {
 }
 
 export default async function AdminOrdersPage({ searchParams }: Props) {
-  await requireAdmin();
+  await requirePermission("orders.view");
 
   const sp = await searchParams;
   const q = first(sp.q)?.trim().slice(0, 50) || undefined;

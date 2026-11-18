@@ -5,13 +5,14 @@ import {
   changeOrderStatus,
   type StatusChangeResult,
 } from "@/modules/orders/admin-mutations";
-import { requireAdmin } from "@/modules/auth/session";
+import { requirePermission } from "@/modules/auth/session";
 
 export async function changeOrderStatusAction(
   id: unknown,
   status: unknown
 ): Promise<StatusChangeResult> {
-  await requireAdmin();
+  // UI-তে বাটন লুকালেও এখানে আবার চেক করি: Server Action সরাসরি ডাকা সম্ভব
+  await requirePermission("orders.manage");
 
   const orderId =
     typeof id === "string" && id.length > 0 && id.length <= 50 ? id : null;
