@@ -47,13 +47,18 @@ function productFields(data: ProductInput) {
   };
 }
 
-function variantFields(v: VariantInput) {
-  return {
+// includeCost = false হলে কেনা দাম (costPrice) একদম বাদ যায়, তাই ডাটাবেসের পুরোনো মান অক্ষত থাকে
+function variantFields(v: VariantInput, includeCost: boolean) {
+  const base = {
     sku: v.sku,
     color: v.color,
     storage: v.storage,
     price: new Prisma.Decimal(v.price),
     comparePrice: v.comparePrice === null ? null : new Prisma.Decimal(v.comparePrice),
+  };
+  if (!includeCost) return base;
+  return {
+    ...base,
     costPrice: v.costPrice === null ? null : new Prisma.Decimal(v.costPrice),
   };
 }
@@ -111,7 +116,7 @@ export async function createProduct(data: ProductInput): Promise<MutationResult>
             specs: hasSpecs ? data.specs : undefined,
             variants: {
               create: data.variants.map((v) => ({
-                ...variantFields(v),
+                ...variantFields(v, true),
                 stock: v.stock,
               })),
             },
@@ -144,9 +149,11 @@ export async function createProduct(data: ProductInput): Promise<MutationResult>
   }
 }
 
+// canSetCost = false হলে বিদ্যমান ভ্যারিয়ান্টের কেনা দাম ছোঁয়া হয় না
 export async function updateProduct(
   id: string,
-  data: ProductInput
+  data: ProductInput,
+  canSetCost: boolean
 ): Promise<MutationResult> {
   const hasSpecs = Object.keys(data.specs).length > 0;
 
@@ -198,11 +205,16 @@ export async function updateProduct(
             // বিদ্যমান ভ্যারিয়ান্ট: স্টক ইচ্ছে করে বাদ (দিন ১১-র আলাদা পেজে বদলাবে)
             await tx.productVariant.update({
               where: { id: v.id },
-              data: variantFields(v),
+              data: variantFields(v, canSetCost),
             });
           } else {
+            // নতুন ভ্যারিয়ান্ট: অনুমতি না থাকলে কেনা দাম খালি (null) থাকবে
             const created = await tx.productVariant.create({
-              data: { productId: id, ...variantFields(v), stock: v.stock },
+              data: {
+                productId: id,
+                ...variantFields(canSetCost ? v : { ...v, costPrice: null }, true),
+                stock: v.stock,
+              },
               select: { id: true },
             });
             if (v.stock > 0) {

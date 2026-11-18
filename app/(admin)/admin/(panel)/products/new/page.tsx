@@ -1,12 +1,13 @@
 import Link from "next/link";
 import ProductForm from "@/components/admin/productForm";
-import { requireAdmin } from "@/modules/auth/session";
+import { requirePermission } from "@/modules/auth/session";
 import { getCatalogOptions } from "@/modules/products/admin";
 
 export const dynamic = "force-dynamic";
 
 export default async function NewProductPage() {
-  await requireAdmin();
+  const staff = await requirePermission("products.edit");
+  const canViewCost = staff.permissions.includes("costPrice.view");
   const options = await getCatalogOptions();
 
   return (
@@ -17,7 +18,7 @@ export default async function NewProductPage() {
         </Link>
       </p>
       <h1 className="mb-6 text-2xl font-bold">নতুন প্রোডাক্ট</h1>
-      <ProductForm mode="create" options={options} />
+      <ProductForm mode="create" options={options} canViewCost={canViewCost} />
     </div>
   );
 }

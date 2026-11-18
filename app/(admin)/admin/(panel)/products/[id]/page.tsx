@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import ProductForm from "@/components/admin/productForm";
-import { requireAdmin } from "@/modules/auth/session";
+import { requirePermission } from "@/modules/auth/session";
 import { getAdminProduct, getCatalogOptions } from "@/modules/products/admin";
 
 export const dynamic = "force-dynamic";
@@ -11,16 +11,25 @@ type Props = {
 };
 
 export default async function EditProductPage({ params }: Props) {
-  await requireAdmin();
+  const staff = await requirePermission("products.edit");
+  const canViewCost = staff.permissions.includes("costPrice.view");
 
   const { id } = await params;
   if (!id || id.length > 50) notFound();
 
-  const [product, options] = await Promise.all([
+  const [found, options] = await Promise.all([
     getAdminProduct(id),
     getCatalogOptions(),
   ]);
-  if (!product) notFound();
+  if (!found) notFound();
+
+  // কেনা দাম দেখার অনুমতি না থাকলে ব্রাউজারে পাঠানোর আগেই মুছে দিই
+  const product = canViewCost
+    ? found
+    : {
+        ...found,
+        variants: found.variants.map((v) => ({ ...v, costPrice: null })),
+      };
 
   return (
     <div>
@@ -30,7 +39,12 @@ export default async function EditProductPage({ params }: Props) {
         </Link>
       </p>
       <h1 className="mb-6 text-2xl font-bold">প্রোডাক্ট সম্পাদনা</h1>
-      <ProductForm mode="edit" options={options} initial={product} />
+      <ProductForm
+        mode="edit"
+        options={options}
+        initial={product}
+        canViewCost={canViewCost}
+      />
     </div>
   );
 }

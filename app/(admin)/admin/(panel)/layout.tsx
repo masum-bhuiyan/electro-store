@@ -12,8 +12,8 @@ export default async function PanelLayout({
   const can = (p: (typeof staff.permissions)[number]) =>
     staff.permissions.includes(p);
 
-  // সাময়িক: প্রোডাক্ট, স্টক ও ক্যাটাগরি পেজ এখনো শুধু মালিকের (requireAdmin)।
-  // ধাপ 1D-2 ও 1D-3 শেষ হলে এই ভেরিয়েবল মুছে শুধু পারমিশন দিয়ে চেক হবে
+  // সাময়িক: স্টক ও ক্যাটাগরি পেজ এখনো শুধু মালিকের (requireAdmin)।
+  // ধাপ 1D-3 শেষ হলে এই ভেরিয়েবল মুছে শুধু পারমিশন দিয়ে চেক হবে
   const ownerPagesReady = staff.role === "ADMIN";
 
   return (
@@ -29,7 +29,7 @@ export default async function PanelLayout({
                 অর্ডার
               </Link>
             )}
-            {ownerPagesReady && can("products.view") && (
+            {can("products.view") && (
               <Link href="/admin/products" className="hover:text-blue-600">
                 প্রোডাক্ট
               </Link>

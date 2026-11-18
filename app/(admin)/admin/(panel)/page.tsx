@@ -12,7 +12,7 @@ export default async function AdminDashboardPage() {
   const can = (p: (typeof staff.permissions)[number]) =>
     staff.permissions.includes(p);
 
-  // সাময়িক: প্রোডাক্ট ও স্টক পেজ এখনো শুধু মালিকের (ধাপ 1D-2/1D-3-এ মুছে যাবে)
+  // সাময়িক: স্টক পেজ এখনো শুধু মালিকের (ধাপ 1D-3-এ মুছে যাবে)
   const ownerPagesReady = staff.role === "ADMIN";
 
   const stats = await getDashboardStats();
@@ -32,7 +32,7 @@ export default async function AdminDashboardPage() {
     cards.push({
       label: "চালু প্রোডাক্ট",
       value: stats.activeProducts,
-      href: ownerPagesReady ? "/admin/products" : null,
+      href: "/admin/products",
     });
   }
   if (can("stock.view")) {
@@ -88,7 +88,7 @@ export default async function AdminDashboardPage() {
             অর্ডার ব্যবস্থাপনা
           </Link>
         )}
-        {ownerPagesReady && can("products.view") && (
+        {can("products.view") && (
           <Link
             href="/admin/products"
             className="inline-block rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium hover:bg-gray-50"

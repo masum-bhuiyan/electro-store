@@ -1,6 +1,6 @@
 "use server";
 
-import { requireAdmin } from "@/modules/auth/session";
+import { requirePermission } from "@/modules/auth/session";
 import {
   createProduct,
   setProductActive,
@@ -16,7 +16,8 @@ function cleanId(v: unknown): string | null {
 export async function createProductAction(
   payload: unknown
 ): Promise<MutationResult> {
-  await requireAdmin();
+  const staff = await requirePermission("products.edit");
+  const canSetCost = staff.permissions.includes("costPrice.view");
 
   const checked = validateProduct(payload);
   if (!checked.ok) {
@@ -26,14 +27,24 @@ export async function createProductAction(
       errors: checked.errors,
     };
   }
-  return createProduct(checked.data);
+
+  // কেনা দাম দেওয়ার অনুমতি না থাকলে ব্রাউজার যা-ই পাঠাক, খালি রাখি
+  const data = canSetCost
+    ? checked.data
+    : {
+        ...checked.data,
+        variants: checked.data.variants.map((v) => ({ ...v, costPrice: null })),
+      };
+
+  return createProduct(data);
 }
 
 export async function updateProductAction(
   id: unknown,
   payload: unknown
 ): Promise<MutationResult> {
-  await requireAdmin();
+  const staff = await requirePermission("products.edit");
+  const canSetCost = staff.permissions.includes("costPrice.view");
 
   const productId = cleanId(id);
   if (!productId) {
@@ -48,14 +59,14 @@ export async function updateProductAction(
       errors: checked.errors,
     };
   }
-  return updateProduct(productId, checked.data);
+  return updateProduct(productId, checked.data, canSetCost);
 }
 
 export async function setProductActiveAction(
   id: unknown,
   active: unknown
 ): Promise<{ ok: boolean; message?: string }> {
-  await requireAdmin();
+  await requirePermission("products.edit");
 
   const productId = cleanId(id);
   if (!productId || typeof active !== "boolean") {

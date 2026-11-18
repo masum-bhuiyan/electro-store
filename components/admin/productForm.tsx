@@ -102,9 +102,16 @@ type Props = {
   mode: "create" | "edit";
   options: CatalogOptions;
   initial?: AdminProductDetail;
+  // false হলে কেনা দামের ঘর দেখানো হয় না
+  canViewCost: boolean;
 };
 
-export default function ProductForm({ mode, options, initial }: Props) {
+export default function ProductForm({
+  mode,
+  options,
+  initial,
+  canViewCost,
+}: Props) {
   const router = useRouter();
   const keyCounter = useRef(1000);
   const submitLock = useRef(false);
@@ -472,21 +479,23 @@ export default function ProductForm({ mode, options, initial }: Props) {
                   className={inputClass}
                 />
               </Field>
-              <Field
-                label="ক্রয় মূল্য (ঐচ্ছিক)"
-                error={errors[`variants.${i}.costPrice`]}
-              >
-                <input
-                  type="text"
-                  inputMode="decimal"
-                  value={v.costPrice}
-                  maxLength={11}
-                  onChange={(e) =>
-                    setVariantField(v.key, "costPrice", e.target.value)
-                  }
-                  className={inputClass}
-                />
-              </Field>
+              {canViewCost && (
+                <Field
+                  label="ক্রয় মূল্য (ঐচ্ছিক)"
+                  error={errors[`variants.${i}.costPrice`]}
+                >
+                  <input
+                    type="text"
+                    inputMode="decimal"
+                    value={v.costPrice}
+                    maxLength={11}
+                    onChange={(e) =>
+                      setVariantField(v.key, "costPrice", e.target.value)
+                    }
+                    className={inputClass}
+                  />
+                </Field>
+              )}
 
               {v.id === null ? (
                 <Field label="শুরুর স্টক" error={errors[`variants.${i}.stock`]}>
@@ -576,7 +585,7 @@ export default function ProductForm({ mode, options, initial }: Props) {
         <Field
           label="প্রতি লাইনে একটা https:// লিংক (সর্বোচ্চ ৮টা)"
           error={errors.images}
-                    hint="Cloudinary থেকে কপি করা লিংক। প্রথম ছবিটাই তালিকা ও শেয়ারে দেখাবে।"
+          hint="Cloudinary থেকে কপি করা লিংক। প্রথম ছবিটাই তালিকা ও শেয়ারে দেখাবে।"
         >
           <textarea
             value={form.imagesText}

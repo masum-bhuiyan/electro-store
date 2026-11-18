@@ -1,7 +1,7 @@
 import Link from "next/link";
 import ProductActiveToggle from "@/components/admin/productActiveToggle";
 import { formatPrice } from "@/lib/format";
-import { requireAdmin } from "@/modules/auth/session";
+import { requirePermission } from "@/modules/auth/session";
 import { getAdminProducts } from "@/modules/products/admin";
 
 export const dynamic = "force-dynamic";
@@ -15,7 +15,8 @@ function first(value: string | string[] | undefined): string | undefined {
 }
 
 export default async function AdminProductsPage({ searchParams }: Props) {
-  await requireAdmin();
+  const staff = await requirePermission("products.view");
+  const canEdit = staff.permissions.includes("products.edit");
 
   const sp = await searchParams;
   const q = first(sp.q)?.trim() || undefined;
@@ -39,12 +40,14 @@ export default async function AdminProductsPage({ searchParams }: Props) {
     <div>
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-bold">প্রোডাক্ট</h1>
-        <Link
-          href="/admin/products/new"
-          className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
-        >
-          + নতুন প্রোডাক্ট
-        </Link>
+        {canEdit && (
+          <Link
+            href="/admin/products/new"
+            className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+          >
+            + নতুন প্রোডাক্ট
+          </Link>
+        )}
       </div>
 
       {saved && (
@@ -92,12 +95,16 @@ export default async function AdminProductsPage({ searchParams }: Props) {
               {items.map((p) => (
                 <tr key={p.id}>
                   <td className="px-4 py-3">
-                    <Link
-                      href={`/admin/products/${p.id}`}
-                      className="font-medium hover:text-blue-600"
-                    >
-                      {p.name}
-                    </Link>
+                    {canEdit ? (
+                      <Link
+                        href={`/admin/products/${p.id}`}
+                        className="font-medium hover:text-blue-600"
+                      >
+                        {p.name}
+                      </Link>
+                    ) : (
+                      <span className="font-medium">{p.name}</span>
+                    )}
                     {p.isFeatured && (
                       <span className="ml-2 rounded bg-yellow-100 px-1.5 py-0.5 text-xs text-yellow-800">
                         বিশেষ
@@ -120,7 +127,19 @@ export default async function AdminProductsPage({ searchParams }: Props) {
                     {p.totalStock}
                   </td>
                   <td className="px-4 py-3">
-                    <ProductActiveToggle id={p.id} isActive={p.isActive} />
+                    {canEdit ? (
+                      <ProductActiveToggle id={p.id} isActive={p.isActive} />
+                    ) : (
+                      <span
+                        className={
+                          p.isActive
+                            ? "rounded-full bg-green-100 px-3 py-1 text-xs font-medium text-green-700"
+                            : "rounded-full bg-gray-200 px-3 py-1 text-xs font-medium text-gray-600"
+                        }
+                      >
+                        {p.isActive ? "চালু" : "বন্ধ"}
+                      </span>
+                    )}
                   </td>
                 </tr>
               ))}
