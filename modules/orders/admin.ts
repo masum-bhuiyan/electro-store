@@ -63,6 +63,8 @@ export type AdminOrderDetail = {
     createdAt: string;
   }[];
   samePhone: { total: number; cancelled: number };
+    // এই ফোন নম্বরের ক্রেতা রেকর্ড আছে কি না
+  customer: { id: string; name: string } | null;
 };
 
 // প্রতিটা অবস্থায় কয়টা অর্ডার (তালিকার ট্যাবের সংখ্যার জন্য)
@@ -155,9 +157,13 @@ export async function getAdminOrder(
 
   if (!order) return null;
 
-  const [phoneTotal, phoneCancelled] = await Promise.all([
+  const [phoneTotal, phoneCancelled, customerRow] = await Promise.all([
     prisma.order.count({ where: { phone: order.phone } }),
     prisma.order.count({ where: { phone: order.phone, status: "CANCELLED" } }),
+    prisma.customer.findUnique({
+      where: { phone: order.phone },
+      select: { id: true, name: true },
+    }),
   ]);
 
   return {
@@ -195,5 +201,6 @@ export async function getAdminOrder(
       createdAt: e.createdAt.toISOString(),
     })),
     samePhone: { total: phoneTotal, cancelled: phoneCancelled },
+        customer: customerRow,
   };
 }

@@ -39,6 +39,13 @@ export default async function AdminDashboardPage() {
       href: "/admin/stock?low=1",
     });
   }
+    if (can("customers.view")) {
+    cards.push({
+      label: "মোট ক্রেতা",
+      value: stats.totalCustomers,
+      href: "/admin/customers",
+    });
+  }
 
   const cardClass = "rounded-lg border border-gray-200 bg-white p-5";
 

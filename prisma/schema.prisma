@@ -44,6 +44,12 @@ enum StockReason {
   ADJUSTMENT
 }
 
+// খুচরা বা পাইকারি ক্রেতা
+enum CustomerType {
+  RETAIL
+  WHOLESALE
+}
+
 model User {
   id                String    @id @default(cuid())
   name              String
@@ -137,12 +143,46 @@ model ProductVariant {
   @@index([productId])
 }
 
+// ক্রেতার রেকর্ড (ডাটা ও হিসাবের জন্য)। এটা লগইন অ্যাকাউন্ট নয়
+model Customer {
+  id          String       @id @default(cuid())
+  type        CustomerType @default(RETAIL)
+  // খুচরায় ক্রেতার নাম, পাইকারিতে দোকানের নাম
+  name        String
+  // পাইকারিতে মালিক বা যোগাযোগের নাম (ঐচ্ছিক)
+  contactName String?
+  phone       String       @unique
+  address     String?
+  note        String?
+  isActive    Boolean      @default(true)
+  orders      Order[]
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  @@index([type])
+}
+
+// যাদের কাছ থেকে মাল কেনা হয়
+model Supplier {
+  id          String   @id @default(cuid())
+  name        String
+  contactName String?
+  phone       String?
+  address     String?
+  note        String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
 model Order {
   id                  String        @id @default(cuid())
   orderNumber         String        @unique
   idempotencyKey      String?       @unique
   userId              String?
   user                User?         @relation(fields: [userId], references: [id])
+  customerId          String?
+  customer            Customer?     @relation(fields: [customerId], references: [id])
   customerName        String
   phone               String
   address             String
@@ -163,6 +203,7 @@ model Order {
   updatedAt           DateTime      @updatedAt
 
   @@index([userId])
+  @@index([customerId])
   @@index([status])
   @@index([createdAt])
 }

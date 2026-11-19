@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import CreateCustomerFromOrder from "@/components/admin/createCustomerFromOrder";
 import OrderEditForm from "@/components/admin/orderEditForm";
 import OrderStatusBadge from "@/components/admin/orderStatusBadge";
 import OrderStatusControl from "@/components/admin/orderStatusControl";
@@ -18,6 +19,8 @@ export default async function AdminOrderDetailPage({ params }: Props) {
   const staff = await requirePermission("orders.view");
   const canManage = staff.permissions.includes("orders.manage");
   const canEditPrice = staff.permissions.includes("orders.editPrice");
+  const canManageCustomers = staff.permissions.includes("customers.manage");
+  const canViewCustomers = staff.permissions.includes("customers.view");
 
   const { id } = await params;
   if (!id || id.length > 50) notFound();
@@ -170,6 +173,24 @@ export default async function AdminOrderDetailPage({ params }: Props) {
               </a>
             </p>
             <p className="mt-3 text-gray-700">{order.address}</p>
+                        <div className="mt-3 border-t border-gray-200 pt-3">
+              {order.customer ? (
+                canViewCustomers ? (
+                  <Link
+                    href={`/admin/customers/${order.customer.id}`}
+                    className="text-blue-600 underline"
+                  >
+                    ক্রেতার রেকর্ড দেখুন ({order.customer.name})
+                  </Link>
+                ) : (
+                  <p className="text-gray-600">ক্রেতার রেকর্ড আছে</p>
+                )
+              ) : canManageCustomers ? (
+                <CreateCustomerFromOrder orderId={order.id} />
+              ) : (
+                <p className="text-gray-500">ক্রেতার রেকর্ড নেই</p>
+              )}
+            </div>
             {order.notes && (
               <p className="mt-3 rounded-md bg-yellow-50 p-3 text-gray-800">
                 নোট: {order.notes}

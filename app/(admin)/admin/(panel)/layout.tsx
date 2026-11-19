@@ -40,6 +40,16 @@ export default async function PanelLayout({
                 ক্যাটাগরি ও ব্র্যান্ড
               </Link>
             )}
+                        {can("customers.view") && (
+              <Link href="/admin/customers" className="hover:text-blue-600">
+                ক্রেতা
+              </Link>
+            )}
+                        {can("purchase.manage") && (
+              <Link href="/admin/suppliers" className="hover:text-blue-600">
+                সাপ্লায়ার
+              </Link>
+            )}
             {can("staff.manage") && (
               <Link href="/admin/staff" className="hover:text-blue-600">
                 কর্মচারী
