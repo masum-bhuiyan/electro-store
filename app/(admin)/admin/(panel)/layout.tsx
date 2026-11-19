@@ -46,6 +46,11 @@ export default async function PanelLayout({
               </Link>
             )}
                         {can("purchase.manage") && (
+              <Link href="/admin/purchases" className="hover:text-blue-600">
+                ক্রয়
+              </Link>
+            )}
+                        {can("purchase.manage") && (
               <Link href="/admin/suppliers" className="hover:text-blue-600">
                 সাপ্লায়ার
               </Link>
