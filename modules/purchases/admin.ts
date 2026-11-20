@@ -31,6 +31,17 @@ export type PurchaseList = {
   totalPages: number;
 };
 
+export type PurchaseReturnRow = {
+  id: string;
+  returnNumber: string;
+  total: number;
+  cashReceived: number;
+  note: string | null;
+  staffName: string;
+  createdAt: string;
+  items: { name: string; quantity: number }[];
+};
+
 export type PurchaseDetail = PurchaseRow & {
   supplierId: string;
   note: string | null;
@@ -39,10 +50,12 @@ export type PurchaseDetail = PurchaseRow & {
     id: string;
     name: string;
     quantity: number;
+    returned: number;
     unitCost: number;
     oldPrice: number | null;
     newPrice: number | null;
   }[];
+  returns: PurchaseReturnRow[];
 };
 
 export async function getAdminPurchases(params: {
@@ -94,9 +107,24 @@ export async function getAdminPurchase(
     include: {
       supplier: { select: { name: true } },
       items: { orderBy: { id: "asc" } },
+      returns: {
+        orderBy: { createdAt: "desc" },
+        include: { items: true },
+      },
     },
   });
   if (!p) return null;
+
+  // প্রতিটি লাইনে এ পর্যন্ত কতটি ফেরত গেছে
+  const returnedMap = new Map<string, number>();
+  for (const r of p.returns) {
+    for (const ri of r.items) {
+      returnedMap.set(
+        ri.purchaseItemId,
+        (returnedMap.get(ri.purchaseItemId) ?? 0) + ri.quantity
+      );
+    }
+  }
 
   return {
     id: p.id,
@@ -114,9 +142,20 @@ export async function getAdminPurchase(
       id: i.id,
       name: i.name,
       quantity: i.quantity,
+      returned: returnedMap.get(i.id) ?? 0,
       unitCost: Number(i.unitCost),
       oldPrice: i.oldPrice ? Number(i.oldPrice) : null,
       newPrice: i.newPrice ? Number(i.newPrice) : null,
+    })),
+    returns: p.returns.map((r) => ({
+      id: r.id,
+      returnNumber: r.returnNumber,
+      total: Number(r.total),
+      cashReceived: Number(r.cashReceived),
+      note: r.note,
+      staffName: r.staffName,
+      createdAt: r.createdAt.toISOString(),
+      items: r.items.map((ri) => ({ name: ri.name, quantity: ri.quantity })),
     })),
   };
 }

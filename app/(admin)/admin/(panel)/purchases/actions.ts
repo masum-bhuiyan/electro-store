@@ -6,6 +6,11 @@ import {
   type CreatePurchaseResult,
 } from "@/modules/purchases/admin-mutations";
 import {
+  createPurchaseReturn,
+  type CreateReturnResult,
+} from "@/modules/purchases/return-mutations";
+import { validatePurchaseReturn } from "@/modules/purchases/return-validation";
+import {
   searchPurchaseVariants,
   type PurchaseSearchRow,
 } from "@/modules/purchases/search";
@@ -32,4 +37,15 @@ export async function createPurchaseAction(
     staff.name,
     staff.permissions.includes("products.edit")
   );
+}
+
+export async function createPurchaseReturnAction(
+  payload: unknown
+): Promise<CreateReturnResult> {
+  const staff = await requirePermission("purchase.manage");
+
+  const checked = validatePurchaseReturn(payload);
+  if (!checked.ok) return { ok: false, message: checked.message };
+
+  return createPurchaseReturn(checked.data, staff.name);
 }
