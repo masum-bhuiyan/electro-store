@@ -51,6 +51,7 @@ function productFields(data: ProductInput) {
 function variantFields(v: VariantInput, includeCost: boolean) {
   const base = {
     sku: v.sku,
+    barcode: v.barcode,
     color: v.color,
     storage: v.storage,
     price: new Prisma.Decimal(v.price),
@@ -86,7 +87,22 @@ async function checkReferences(
     // একই SKU অন্য কোনো ভ্যারিয়ান্টের হলে ভুল (নিজের হলে ঠিক আছে)
     if (hit && hit.id !== v.id) errors[`variants.${i}.sku`] = "এই SKU আগে থেকেই আছে";
   });
-
+  // বারকোড অন্য কোনো ভ্যারিয়ান্টের বারকোড বা SKU-র সাথে মিললে স্ক্যানে গোলমাল হবে
+  const codes = data.variants
+    .map((v) => v.barcode)
+    .filter((b): b is string => b !== null);
+  if (codes.length > 0) {
+    const codeRows = await tx.productVariant.findMany({
+      where: { OR: [{ barcode: { in: codes } }, { sku: { in: codes } }] },
+      select: { id: true },
+    });
+    data.variants.forEach((v, i) => {
+      if (v.barcode === null) return;
+      const clash = codeRows.some((r) => r.id !== v.id);
+      if (clash) errors[`variants.${i}.barcode`] = "এই বারকোড আগে থেকেই আছে";
+    });
+  }
+  
   const category = await tx.category.findUnique({
     where: { id: data.categoryId },
     select: { id: true },

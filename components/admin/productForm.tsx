@@ -29,6 +29,7 @@ type VariantRow = {
   key: string;
   id: string | null;
   sku: string;
+  barcode: string;
   color: string;
   storage: string;
   price: string;
@@ -40,6 +41,7 @@ type VariantRow = {
 
 type VariantTextField =
   | "sku"
+  | "barcode"
   | "color"
   | "storage"
   | "price"
@@ -65,6 +67,7 @@ function emptyVariant(key: string): VariantRow {
     key,
     id: null,
     sku: "",
+    barcode: "",
     color: "",
     storage: "",
     price: "",
@@ -143,6 +146,7 @@ export default function ProductForm({
           key: v.id,
           id: v.id,
           sku: v.sku,
+          barcode: v.barcode ?? "",
           color: v.color ?? "",
           storage: v.storage ?? "",
           price: String(v.price),
@@ -240,6 +244,7 @@ export default function ProductForm({
       variants: variants.map((v) => ({
         id: v.id,
         sku: v.sku,
+        barcode: v.barcode,
         color: v.color,
         storage: v.storage,
         price: v.price,
@@ -452,6 +457,23 @@ export default function ProductForm({
                 />
               </Field>
             </div>
+                        <Field
+              label="বারকোড (ঐচ্ছিক)"
+              error={errors[`variants.${i}.barcode`]}
+              hint="প্যাকেটের ছাপা বারকোড। ঘরে ক্লিক করে স্ক্যানার দিয়ে স্ক্যান করুন।"
+            >
+              <input
+                type="text"
+                value={v.barcode}
+                maxLength={40}
+                onChange={(e) => setVariantField(v.key, "barcode", e.target.value)}
+                onKeyDown={(e) => {
+                  // স্ক্যানার শেষে Enter পাঠায়, ফর্ম যেন সেভ হয়ে না যায়
+                  if (e.key === "Enter") e.preventDefault();
+                }}
+                className={`${inputClass} font-mono`}
+              />
+            </Field>
 
             <div className="grid gap-3 sm:grid-cols-4">
               <Field label="দাম (৳)" error={errors[`variants.${i}.price`]}>

@@ -26,6 +26,7 @@ export type AdminProductList = {
 export type AdminVariant = {
   id: string;
   sku: string;
+  barcode: string | null;
   color: string | null;
   storage: string | null;
   price: number;
@@ -140,6 +141,7 @@ export async function getAdminProduct(
     variants: p.variants.map((v) => ({
       id: v.id,
       sku: v.sku,
+      barcode: v.barcode,
       color: v.color,
       storage: v.storage,
       price: Number(v.price),

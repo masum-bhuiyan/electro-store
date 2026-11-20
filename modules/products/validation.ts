@@ -2,6 +2,7 @@ import { isAllowedImageUrl } from "@/lib/images";
 export type VariantInput = {
   id: string | null;
   sku: string;
+  barcode: string | null;
   color: string | null;
   storage: string | null;
   price: number;
@@ -161,6 +162,7 @@ export function validateProduct(input: unknown): ProductValidation {
     errors.variants = "কমপক্ষে ১টা ও সর্বোচ্চ ৩০টা ভ্যারিয়ান্ট দিন";
   } else {
     const seenSku = new Set<string>();
+    const seenBarcode = new Set<string>();
 
     rawVariants.forEach((row, i) => {
       const r = isRecord(row) ? row : {};
@@ -178,6 +180,19 @@ export function validateProduct(input: unknown): ProductValidation {
         errors[p + "sku"] = "এই SKU একই ফর্মে দুইবার আছে";
       }
       seenSku.add(sku);
+            let barcode: string | null = null;
+      const barcodeText = str(r.barcode);
+      if (barcodeText) {
+        if (barcodeText.length > 40 || !/^[A-Za-z0-9._-]+$/.test(barcodeText)) {
+          errors[p + "barcode"] =
+            "বারকোডে শুধু ইংরেজি অক্ষর, সংখ্যা, . _ - চলবে (সর্বোচ্চ ৪০)";
+        } else if (seenBarcode.has(barcodeText)) {
+          errors[p + "barcode"] = "এই বারকোড একই ফর্মে দুইবার আছে";
+        } else {
+          barcode = barcodeText;
+          seenBarcode.add(barcodeText);
+        }
+      }
 
       const color = str(r.color);
       if (color.length > 30) errors[p + "color"] = "সর্বোচ্চ ৩০ অক্ষর";
@@ -219,6 +234,7 @@ export function validateProduct(input: unknown): ProductValidation {
       variants.push({
         id,
         sku,
+        barcode,
         color: color || null,
         storage: storage || null,
         price: price ?? 0,

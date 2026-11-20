@@ -131,6 +131,8 @@ model ProductVariant {
   productId      String
   product        Product         @relation(fields: [productId], references: [id], onDelete: Cascade)
   sku            String          @unique
+  // প্রস্তুতকারকের ছাপা বারকোড (ঐচ্ছিক)। স্ক্যানারে খোঁজার জন্য
+  barcode        String?         @unique
   color          String?
   storage        String?
   price          Decimal         @db.Decimal(12, 2)
@@ -141,6 +143,7 @@ model ProductVariant {
   orderItems     OrderItem[]
   purchaseItems  PurchaseItem[]
   purchaseReturnItems PurchaseReturnItem[]
+  saleItems           SaleItem[]
 
   @@index([productId])
 }
@@ -158,6 +161,7 @@ model Customer {
   note        String?
   isActive    Boolean      @default(true)
   orders      Order[]
+  sales       Sale[]
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
 
@@ -337,4 +341,55 @@ model PurchaseReturnItem {
 
   @@index([returnId])
   @@index([purchaseItemId])
+}
+// পেমেন্টের মাধ্যম (দোকানের বিক্রয়ে)
+enum SalePayMethod {
+  CASH
+  BKASH
+  NAGAD
+  BANK
+}
+
+// দোকানের (POS) বিক্রয়
+model Sale {
+  id           String        @id @default(cuid())
+  saleNumber   String        @unique
+  // সেভ করা ক্রেতা। walk-in হলে খালি
+  customerId   String?
+  customer     Customer?     @relation(fields: [customerId], references: [id])
+  // বিক্রির সময়ের ক্রেতার ধরন। পরে ক্রেতার ধরন বদলালেও পুরনো রিপোর্ট বদলাবে না
+  customerType CustomerType  @default(RETAIL)
+  // মেমোতে দেখানোর জন্য বিক্রির সময়ের নাম ও ফোন
+  customerName String?
+  customerPhone String?
+  subtotal     Decimal       @db.Decimal(12, 2)
+  paid         Decimal       @default(0) @db.Decimal(12, 2)
+  payMethod    SalePayMethod @default(CASH)
+  note         String?
+  staffName    String
+  items        SaleItem[]
+  createdAt    DateTime      @default(now())
+
+  @@index([customerId])
+  @@index([createdAt])
+  @@index([customerType])
+}
+
+model SaleItem {
+  id        String         @id @default(cuid())
+  saleId    String
+  sale      Sale           @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  variantId String
+  variant   ProductVariant @relation(fields: [variantId], references: [id])
+  name      String
+  quantity  Int
+  // বিক্রির সময়ের আসল দাম (ছাড় বের করতে)
+  listPrice Decimal        @db.Decimal(12, 2)
+  // আসলে যে দামে বিক্রি হলো
+  unitPrice Decimal        @db.Decimal(12, 2)
+  // বিক্রির সময়ের গড় কেনা দাম (লাভ বের করতে)। দাম না থাকলে খালি
+  unitCost  Decimal?       @db.Decimal(12, 2)
+
+  @@index([saleId])
+  @@index([variantId])
 }

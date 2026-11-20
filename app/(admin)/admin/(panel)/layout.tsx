@@ -20,6 +20,16 @@ export default async function PanelLayout({
             <Link href="/admin" className="font-bold">
               অ্যাডমিন
             </Link>
+                        {can("pos.sell") && (
+              <Link href="/admin/pos" className="hover:text-blue-600">
+                বিক্রয়
+              </Link>
+            )}
+                        {can("pos.sell") && (
+              <Link href="/admin/sales" className="hover:text-blue-600">
+                বিক্রয়ের তালিকা
+              </Link>
+            )}
             {can("orders.view") && (
               <Link href="/admin/orders" className="hover:text-blue-600">
                 অর্ডার
