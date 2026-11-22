@@ -2,6 +2,7 @@ import type { Prisma } from "@/generated/prisma/client";
 import type { CustomerTypeKey } from "@/lib/customer-type";
 import { prisma } from "@/lib/prisma";
 import type { SaleStatusKey } from "@/modules/sales/validation";
+import type { SaleCustomerRow } from "@/modules/sales/search";
 
 export const SALES_PAGE_SIZE = 20;
 
@@ -130,6 +131,52 @@ export async function getAdminSale(
       listPrice: Number(i.listPrice),
       unitPrice: Number(i.unitPrice),
       unitCost: includeCost && i.unitCost ? Number(i.unitCost) : null,
+    })),
+  };
+}
+export type DraftEditData = {
+  id: string;
+  saleNumber: string;
+  customer: SaleCustomerRow | null;
+  // ফোন ছাড়া শুধু নাম দিয়ে রাখা ড্রাফটের নাম
+  looseName: string;
+  customerType: CustomerTypeKey;
+  payMethod: string;
+  paid: number;
+  extraDiscount: number;
+  note: string;
+  items: { variantId: string; quantity: number; unitPrice: number }[];
+};
+
+// এডিটের জন্য ড্রাফট লোড। ড্রাফট না হলে null
+export async function getDraftForEdit(id: string): Promise<DraftEditData | null> {
+  const s = await prisma.sale.findUnique({
+    where: { id },
+    include: { items: { orderBy: { id: "asc" } } },
+  });
+  if (!s || s.status !== "DRAFT") return null;
+
+  const customer = s.customerId
+    ? await prisma.customer.findUnique({
+        where: { id: s.customerId },
+        select: { id: true, type: true, name: true, contactName: true, phone: true },
+      })
+    : null;
+
+  return {
+    id: s.id,
+    saleNumber: s.saleNumber,
+    customer,
+    looseName: s.customerId ? "" : s.customerName ?? "",
+    customerType: s.customerType,
+    payMethod: s.payMethod,
+    paid: Number(s.paid),
+    extraDiscount: Number(s.extraDiscount),
+    note: s.note ?? "",
+    items: s.items.map((i) => ({
+      variantId: i.variantId,
+      quantity: i.quantity,
+      unitPrice: Number(i.unitPrice),
     })),
   };
 }

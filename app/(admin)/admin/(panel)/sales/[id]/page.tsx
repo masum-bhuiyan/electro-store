@@ -21,13 +21,12 @@ function taka(n: number): string {
 }
 
 export default async function SaleDetailPage({ params }: Props) {
-  const staff = await requirePermission("pos.sell");
-  const canViewCost = staff.permissions.includes("costPrice.view");
+    await requirePermission("pos.sell");
 
   const { id } = await params;
   if (!id || id.length > 50) notFound();
 
-  const s = await getAdminSale(id, canViewCost);
+    const s = await getAdminSale(id, false);
   if (!s) notFound();
 
   const when = new Date(s.createdAt).toLocaleString("en-GB", {
@@ -38,14 +37,6 @@ export default async function SaleDetailPage({ params }: Props) {
     minute: "2-digit",
     timeZone: "Asia/Dhaka",
   });
-
-  // লাভ: শুধু কেনা দাম দেখার অনুমতি থাকলে
-  const withCost = s.items.filter((i) => i.unitCost !== null);
-  const profit = withCost.reduce(
-    (sum, i) => sum + (i.unitPrice - (i.unitCost ?? 0)) * i.quantity,
-    0
-  );
-  const missingCost = s.items.length - withCost.length;
 
   return (
     <div>
@@ -91,7 +82,15 @@ export default async function SaleDetailPage({ params }: Props) {
           <span>
             এটা ড্রাফট। পণ্যের স্টক আটকে আছে। ক্রেতা এলে কনফার্ম করুন, না এলে ডিলিট করুন।
           </span>
-          <DraftActions saleId={s.id} showConfirm afterDelete="list" />
+                   <span className="flex flex-wrap items-center gap-2">
+            <Link
+              href={`/admin/pos?draft=${s.id}`}
+              className="rounded-md border border-blue-600 px-3 py-1.5 text-sm font-medium text-blue-700 hover:bg-blue-50"
+            >
+              এডিট করুন
+            </Link>
+            <DraftActions saleId={s.id} showConfirm afterDelete="list" />
+          </span>
         </div>
       )}
 
@@ -151,22 +150,6 @@ export default async function SaleDetailPage({ params }: Props) {
           <span className="font-bold">{taka(s.due)}</span>
         </p>
       </div>
-
-          {canViewCost && s.status === "CONFIRMED" && (
-        <div className="mt-4 max-w-sm rounded-lg border border-gray-200 bg-white p-4 text-sm">
-          <p className="flex justify-between">
-            <span>এই বিক্রয়ের লাভ</span>
-            <span className={`font-bold ${profit - s.extraDiscount < 0 ? "text-red-600" : "text-green-700"}`}>
-              {taka(profit - s.extraDiscount)}
-            </span>
-          </p>
-          {missingCost > 0 && (
-            <p className="mt-1 text-xs text-gray-500">
-              {missingCost}টি পণ্যের কেনা দাম ছিল না, তাই সেগুলো লাভে ধরা হয়নি।
-            </p>
-          )}
-        </div>
-      )}
 
       {s.note && (
         <p className="mt-4 whitespace-pre-line rounded-md bg-white p-3 text-sm text-gray-700">

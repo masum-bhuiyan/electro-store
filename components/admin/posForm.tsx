@@ -1,11 +1,16 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
+import PrintButton from "@/components/admin/printButton";
+import SaleMemo, { type MemoData } from "@/components/admin/saleMemo";
 import {
   checkBelowCostAction,
   createSaleAction,
   saveDraftAction,
+  updateDraftAction,
   lookupSaleCustomerAction,
   searchSaleCustomersAction,
 } from "@/app/(admin)/admin/(panel)/sales/actions";
@@ -22,6 +27,19 @@ const inputClass =
   "w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-600 focus:outline-none";
 
 type Line = SaleVariantRow & { quantity: string; unitPrice: string };
+// ড্রাফট এডিটের সময় পেজ থেকে আসা শুরুর তথ্য
+export type PosDraftInit = {
+  id: string;
+  saleNumber: string;
+  customer: SaleCustomerRow | null;
+  looseName: string;
+  customerType: CustomerTypeKey;
+  lines: Line[];
+  paid: number;
+  extraDiscount: number;
+  payMethod: string;
+  note: string;
+};
 
 const PAY_OPTIONS = [
   { value: "CASH", label: "নগদ" },
@@ -37,13 +55,25 @@ function round2(n: number): number {
 function taka(n: number): string {
   return `৳${round2(n).toLocaleString("en-US")}`;
 }
+function nowText(): string {
+  return new Date().toLocaleString("en-GB", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone: "Asia/Dhaka",
+  });
+}
 
 export default function PosForm({
   canViewCost,
   catalog,
+  draft,
 }: {
   canViewCost: boolean;
   catalog: SaleVariantRow[];
+  draft?: PosDraftInit;
 }) {
   const router = useRouter();
   const submitLock = useRef(false);
@@ -53,27 +83,39 @@ export default function PosForm({
   const scanRef = useRef<HTMLInputElement>(null);
 
   // ক্রেতা
-  const [customer, setCustomer] = useState<SaleCustomerRow | null>(null);
-  const [custName, setCustName] = useState("");
+  const [customer, setCustomer] = useState<SaleCustomerRow | null>(draft?.customer ?? null);
+  const [custName, setCustName] = useState(draft?.looseName ?? "");
   const [custPhone, setCustPhone] = useState("");
-  const [custType, setCustType] = useState<CustomerTypeKey>("RETAIL");
+ const [custType, setCustType] = useState<CustomerTypeKey>(draft?.customerType ?? "RETAIL");
   const [nameResults, setNameResults] = useState<SaleCustomerRow[]>([]);
   const [phoneNotFound, setPhoneNotFound] = useState(false);
 
   // পণ্য
-  const [lines, setLines] = useState<Line[]>([]);
+  const [lines, setLines] = useState<Line[]>(draft?.lines ?? []);
   const [query, setQuery] = useState("");
   const [scanMsg, setScanMsg] = useState<string | null>(null);
   const [lossIds, setLossIds] = useState<string[]>([]);
 
   // পেমেন্ট
-  const [paid, setPaid] = useState<string | null>(null); // null = পুরো টাকা
-  const [extraDiscount, setExtraDiscount] = useState(0); // বিল বন্ধ করার ছাড়
-  const [payMethod, setPayMethod] = useState("CASH");
-  const [note, setNote] = useState("");
+  const [paid, setPaid] = useState<string | null>(draft ? String(draft.paid) : null); // null = পুরো টাকা
+  const [extraDiscount, setExtraDiscount] = useState(draft?.extraDiscount ?? 0); // বিল বন্ধ করার ছাড়
+  const [payMethod, setPayMethod] = useState(draft?.payMethod ?? "CASH");
+  const [note, setNote] = useState(draft?.note ?? "");
 
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+    // ধাপ: form = ফর্ম, preview = মেমো রিভিউ, done = কনফার্ম হয়ে গেছে
+  const [view, setView] = useState<"form" | "preview" | "done">("form");
+  const [done, setDone] = useState<{
+    id: string;
+    saleNumber: string;
+    dateText: string;
+  } | null>(null);
+  // প্রিন্টের সময় শুধু মেমো ছাপার জন্য body-তে আলাদা কপি
+  const [portalEl, setPortalEl] = useState<HTMLElement | null>(null);
+  useEffect(() => {
+    setPortalEl(document.body);
+  }, []);
 
   const phoneDigits = custPhone.replace(/\D/g, "");
 
@@ -244,7 +286,7 @@ export default function PosForm({
     setExtraDiscount(round2(discount + due));
   }
 
-    async function submitSale(asDraft: boolean) {
+        async function submitSale(asDraft: boolean) {
     if (submitLock.current) return;
 
     submitLock.current = true;
@@ -259,7 +301,7 @@ export default function PosForm({
       newType: custType,
       note,
       payMethod,
-      // ড্রাফটে টাকা না লিখলে পরিশোধ ০ (ক্রেতা এখনো দেননি)
+      // নতুন ড্রাফটে টাকা না লিখলে পরিশোধ ০ (ক্রেতা এখনো দেননি)
       paid: asDraft && paid === null ? "0" : paidValue,
       extraDiscount: discount > 0 ? String(discount) : "0",
       items: lines.map((l) => ({
@@ -271,13 +313,26 @@ export default function PosForm({
 
     let navigated = false;
     try {
-      const result = asDraft
-        ? await saveDraftAction(payload)
-        : await createSaleAction(payload);
+      const result = draft
+        ? await updateDraftAction(draft.id, payload, !asDraft)
+        : asDraft
+          ? await saveDraftAction(payload)
+          : await createSaleAction(payload);
       if (result.ok) {
+        if (!asDraft) {
+          // কনফার্ম হয়েছে: এখানেই মেমো দেখাই, প্রিন্টের বাটনসহ
+          setDone({
+            id: result.id,
+            saleNumber: result.saleNumber,
+            dateText: nowText(),
+          });
+          setView("done");
+          window.scrollTo({ top: 0 });
+          return;
+        }
         navigated = true;
         router.push(
-          asDraft ? "/admin/sales?status=DRAFT&saved=draft" : "/admin/sales?saved=1"
+          draft ? `/admin/sales/${result.id}` : "/admin/sales?status=DRAFT&saved=draft"
         );
         return;
       }
@@ -292,13 +347,148 @@ export default function PosForm({
     }
   }
 
+    // "মেমো দেখুন": সেভ না করে শুধু রিভিউ
+  function showPreview() {
+    setFormError(null);
+    if (lines.length === 0) return;
+    if (due < 0) {
+      setFormError("পরিশোধ মোটের চেয়ে বেশি হয়ে গেছে।");
+      return;
+    }
+    if (due > 0 && !hasCustomer) {
+      setFormError("বাকিতে বিক্রি করতে ক্রেতার মোবাইল নম্বর দিন।");
+      return;
+    }
+    setView("preview");
+    window.scrollTo({ top: 0 });
+  }
+
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    void submitSale(false);
+    showPreview();
+  }
+
+  const doneInfo = view === "done" ? done : null;
+  const memo: MemoData = {
+    saleNumber: doneInfo?.saleNumber ?? null,
+    dateText: doneInfo?.dateText ?? nowText(),
+    customerName: customer?.name ?? (custName.trim() || null),
+    customerPhone: customer?.phone ?? (custPhone.trim() || null),
+    customerTypeText: customer
+      ? customerTypeLabel(customer.type)
+      : phoneDigits.length >= 11
+        ? customerTypeLabel(custType)
+        : null,
+    items: lines.map((l) => ({
+      name: l.name,
+      quantity: Number(l.quantity) || 0,
+      unitPrice: Number(l.unitPrice) || 0,
+    })),
+    itemsTotal,
+    extraDiscount: discount,
+    total,
+    paid: paidNumber,
+    due,
+    payMethodLabel: PAY_OPTIONS.find((o) => o.value === payMethod)?.label ?? payMethod,
+    note: note.trim() || null,
+  };
+
+  if (view !== "form") {
+    return (
+      <div className="space-y-4">
+        <style>
+          {
+            "@page { size: A4; margin: 12mm; } @media print { * { -webkit-print-color-adjust: exact; print-color-adjust: exact; } body > *:not(#memo-portal) { display: none !important; } }"
+          }
+        </style>
+
+        {doneInfo ? (
+          <div className="rounded-md bg-green-50 p-3 text-sm text-green-700">
+            বিক্রয় কনফার্ম হয়েছে। মেমো নম্বর:{" "}
+            <span className="font-mono font-bold">{doneInfo.saleNumber}</span>। স্টক কমেছে।
+          </div>
+        ) : (
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-md bg-yellow-50 p-3 text-sm text-yellow-800">
+            <span>মেমো রিভিউ: এখনো সেভ হয়নি। ভুল থাকলে ফিরে গিয়ে ঠিক করুন।</span>
+            <button
+              type="button"
+              onClick={() => setView("form")}
+              className="rounded-md border border-yellow-700 px-3 py-1.5 font-medium hover:bg-yellow-100"
+            >
+              ← ফিরে যান
+            </button>
+          </div>
+        )}
+
+        <div className="mx-auto max-w-[210mm] border border-gray-200 bg-white p-8 shadow">
+          <SaleMemo data={memo} />
+        </div>
+
+        {formError && (
+          <p className="mx-auto max-w-[210mm] rounded-md bg-red-50 p-3 text-sm text-red-700">
+            {formError}
+          </p>
+        )}
+
+        <div className="mx-auto flex max-w-[210mm] flex-wrap items-center gap-3">
+          {doneInfo ? (
+            <>
+              <PrintButton />
+              <button
+                type="button"
+                onClick={() => window.location.assign("/admin/pos")}
+                className="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm hover:bg-gray-50"
+              >
+                + নতুন বিক্রয়
+              </button>
+              <Link
+                href={`/admin/sales/${doneInfo.id}`}
+                className="text-sm text-blue-600 hover:underline"
+              >
+                বিক্রয়ের পেজ দেখুন
+              </Link>
+            </>
+          ) : (
+            <>
+              <button
+                type="button"
+                onClick={() => setView("form")}
+                disabled={saving}
+                className="rounded-md border border-gray-300 bg-white px-5 py-2.5 text-sm hover:bg-gray-50 disabled:text-gray-400"
+              >
+                ← ফিরে যান
+              </button>
+              <button
+                type="button"
+                onClick={() => void submitSale(false)}
+                disabled={saving}
+                className="rounded-md bg-green-600 px-6 py-2.5 font-medium text-white hover:bg-green-700 disabled:cursor-not-allowed disabled:bg-gray-300"
+              >
+                {saving ? "সংরক্ষণ হচ্ছে..." : "অর্ডার কনফার্ম করুন"}
+              </button>
+            </>
+          )}
+        </div>
+
+        {portalEl &&
+          createPortal(
+            <div id="memo-portal" className="hidden print:block">
+              <SaleMemo data={memo} />
+            </div>,
+            portalEl
+          )}
+      </div>
+    );
   }
 
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
+            {draft && (
+        <p className="rounded-md bg-yellow-50 p-3 text-sm text-yellow-800">
+          ড্রাফট এডিট করছেন: <span className="font-mono">{draft.saleNumber}</span>। পণ্য
+          বদলালে স্টক শুধু পার্থক্য অনুযায়ী কমবে বা বাড়বে।
+        </p>
+      )}
       {/* ক্রেতা */}
       <div className="rounded-lg border border-gray-200 bg-white p-5">
         <p className="mb-2 text-sm font-medium text-gray-700">ক্রেতা</p>
@@ -685,14 +875,14 @@ export default function PosForm({
           onClick={() => void submitSale(true)}
           className="rounded-md border border-blue-600 px-6 py-2.5 font-medium text-blue-700 hover:bg-blue-50 disabled:cursor-not-allowed disabled:border-gray-300 disabled:text-gray-400"
         >
-          ড্রাফট রাখুন
+       {draft ? "ড্রাফট আপডেট করুন" : "ড্রাফট রাখুন"}
         </button>
         <button
           type="submit"
           disabled={saving || lines.length === 0}
           className="rounded-md bg-blue-600 px-6 py-2.5 font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-gray-300 disabled:text-gray-600"
         >
-          {saving ? "সংরক্ষণ হচ্ছে..." : "বিক্রয় সংরক্ষণ করুন"}
+                            মেমো দেখুন
         </button>
       </div>
       <p className="text-xs text-gray-500">

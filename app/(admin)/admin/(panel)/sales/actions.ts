@@ -7,6 +7,7 @@ import {
   deleteDraft,
   type DraftResult,
 } from "@/modules/sales/draft-mutations";
+import { updateDraft } from "@/modules/sales/draft-update";
 import {
   findBelowCost,
   findSaleCustomerByPhone,
@@ -91,4 +92,25 @@ export async function confirmDraftAction(id: unknown): Promise<DraftResult> {
     return { ok: false, message: "ড্রাফট ঠিক নেই।" };
   }
   return confirmDraft(id);
+}
+// ড্রাফট এডিট। confirm = true হলে আপডেটের সাথে কনফার্মও
+export async function updateDraftAction(
+  id: unknown,
+  payload: unknown,
+  confirm: unknown
+): Promise<CreateSaleResult> {
+  const staff = await requirePermission("pos.sell");
+  if (typeof id !== "string" || id.length === 0 || id.length > 50) {
+    return { ok: false, message: "ড্রাফট ঠিক নেই।" };
+  }
+
+  const checked = validateSale(payload, confirm === true ? "CONFIRMED" : "DRAFT");
+  if (!checked.ok) return { ok: false, message: checked.message };
+
+  return updateDraft(
+    id,
+    checked.data,
+    staff.name,
+    staff.permissions.includes("customers.manage")
+  );
 }

@@ -197,6 +197,12 @@ export default async function SalesPage({ searchParams }: Props) {
                   </td>
                   {isDraft && (
                     <td className="px-3 py-2 text-right">
+                                            <Link
+                        href={`/admin/pos?draft=${s.id}`}
+                        className="mr-3 text-sm text-blue-600 hover:underline"
+                      >
+                        এডিট
+                      </Link>
                       <DraftActions
                         saleId={s.id}
                         showConfirm={false}
