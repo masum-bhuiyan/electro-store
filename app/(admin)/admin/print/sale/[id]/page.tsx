@@ -100,6 +100,9 @@ export default async function SalePrintPage({ params }: Props) {
             <p className="text-xs text-gray-600">মেমো নং</p>
             <p className="font-mono font-bold">{s.saleNumber}</p>
             <p>{when}</p>
+                        {s.edits.length > 0 && (
+              <p className="text-xs font-bold text-gray-700">সংশোধিত</p>
+            )}
                {s.status === "DRAFT" && (
               <p className="text-xs font-bold text-yellow-700">
                 ড্রাফট (এখনো কনফার্ম হয়নি)

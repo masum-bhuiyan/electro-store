@@ -32,6 +32,13 @@ export type SaleDetail = SaleRow & {
   extraDiscount: number;
   note: string | null;
   staffName: string;
+   edits: {
+    id: string;
+    staffName: string;
+    summary: string;
+    reason: string | null;
+    createdAt: string;
+  }[];
   items: {
     id: string;
     name: string;
@@ -104,7 +111,10 @@ export async function getAdminSale(
 ): Promise<SaleDetail | null> {
   const s = await prisma.sale.findUnique({
     where: { id },
-    include: { items: { orderBy: { id: "asc" } } },
+       include: {
+      items: { orderBy: { id: "asc" } },
+      edits: { orderBy: { createdAt: "desc" } },
+    },
   });
   if (!s) return null;
 
@@ -124,6 +134,13 @@ export async function getAdminSale(
     extraDiscount: Number(s.extraDiscount),
     note: s.note,
     staffName: s.staffName,
+        edits: s.edits.map((e) => ({
+      id: e.id,
+      staffName: e.staffName,
+      summary: e.summary,
+      reason: e.reason,
+      createdAt: e.createdAt.toISOString(),
+    })),
     items: s.items.map((i) => ({
       id: i.id,
       name: i.name,
@@ -149,12 +166,15 @@ export type DraftEditData = {
 };
 
 // এডিটের জন্য ড্রাফট লোড। ড্রাফট না হলে null
-export async function getDraftForEdit(id: string): Promise<DraftEditData | null> {
+export async function getDraftForEdit(
+  id: string,
+  status: SaleStatusKey = "DRAFT"
+): Promise<DraftEditData | null> {
   const s = await prisma.sale.findUnique({
     where: { id },
     include: { items: { orderBy: { id: "asc" } } },
   });
-  if (!s || s.status !== "DRAFT") return null;
+    if (!s || s.status !== status) return null;
 
   const customer = s.customerId
     ? await prisma.customer.findUnique({

@@ -23,6 +23,8 @@ export type MemoData = {
   due: number;
   payMethodLabel: string;
   note: string | null;
+    // সংশোধন করা বিক্রয় হলে true
+  revised?: boolean;
 };
 
 function taka(n: number): string {
@@ -68,6 +70,9 @@ export default function SaleMemo({ data }: { data: MemoData }) {
           <p className="text-xs text-gray-600">মেমো নং</p>
           <p className="font-mono font-bold">{data.saleNumber ?? "কনফার্মের পর"}</p>
           <p>{data.dateText}</p>
+                    {data.revised && (
+            <p className="text-xs font-bold text-gray-700">সংশোধিত</p>
+          )}
         </div>
       </div>
 

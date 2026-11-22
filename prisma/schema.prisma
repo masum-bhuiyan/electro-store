@@ -377,6 +377,7 @@ model Sale {
   note         String?
   staffName    String
   items        SaleItem[]
+  edits        SaleEdit[]
   createdAt    DateTime      @default(now())
 
   @@index([customerId])
@@ -402,4 +403,17 @@ model SaleItem {
 
   @@index([saleId])
   @@index([variantId])
+}
+
+// কনফার্ম হওয়া বিক্রয়ের সংশোধনের লগ: কে, কখন, কী বদলাল
+model SaleEdit {
+  id        String   @id @default(cuid())
+  saleId    String
+  sale      Sale     @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  staffName String
+  summary   String
+  reason    String?
+  createdAt DateTime @default(now())
+
+  @@index([saleId])
 }

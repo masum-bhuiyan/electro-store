@@ -24,6 +24,7 @@ export const ALL_PERMISSIONS = [
   "customers.view", // (ERP-2)
   "customers.manage",
   "pos.sell", // (ERP-3)
+  "sales.edit", // কনফার্ম হওয়া বিক্রয় সংশোধন (ERP-3D-4)
   "purchase.manage", // (ERP-4)
   "money.manage", // খরচ, ক্যাশ, ব্যাংক, বাকি আদায় (ERP-5/6)
   "reports.view", // (ERP-7)
@@ -46,6 +47,7 @@ export const PERMISSION_LABELS: Record<Permission, string> = {
   "customers.view": "কাস্টমার দেখা",
   "customers.manage": "কাস্টমার যোগ ও এডিট",
   "pos.sell": "দোকানে বিক্রি (POS)",
+  "sales.edit": "কনফার্ম হওয়া বিক্রয় সংশোধন",
   "purchase.manage": "মাল কেনা",
   "money.manage": "টাকা-পয়সা, খরচ, ক্যাশ",
   "reports.view": "রিপোর্ট দেখা",

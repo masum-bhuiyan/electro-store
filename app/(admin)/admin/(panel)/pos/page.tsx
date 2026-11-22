@@ -10,36 +10,73 @@ type Props = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
 
+function first(v: string | string[] | undefined): string | undefined {
+  const s = Array.isArray(v) ? v[0] : v;
+  return s?.trim().slice(0, 50) || undefined;
+}
+
+function Message({ title, text, backHref, backText }: {
+  title: string;
+  text: string;
+  backHref: string;
+  backText: string;
+}) {
+  return (
+    <div>
+      <h1 className="mb-4 text-2xl font-bold">{title}</h1>
+      <p className="rounded-md bg-red-50 p-3 text-sm text-red-700">{text}</p>
+      <p className="mt-3 text-sm">
+        <Link href={backHref} className="text-blue-600 hover:underline">
+          {backText}
+        </Link>
+      </p>
+    </div>
+  );
+}
+
 export default async function PosPage({ searchParams }: Props) {
   const staff = await requirePermission("pos.sell");
   const canViewCost = staff.permissions.includes("costPrice.view");
 
   const sp = await searchParams;
-  const draftRaw = Array.isArray(sp.draft) ? sp.draft[0] : sp.draft;
-  const draftId = draftRaw?.trim().slice(0, 50) || undefined;
+  const editId = first(sp.edit);
+  const draftId = first(sp.draft);
+  const targetId = editId ?? draftId;
+  const kind: "draft" | "sale" = editId ? "sale" : "draft";
+  const title = kind === "sale" ? "বিক্রয় সংশোধন" : "ড্রাফট এডিট";
+
+  if (editId && !staff.permissions.includes("sales.edit")) {
+    return (
+      <Message
+        title={title}
+        text="বিক্রয় সংশোধন করার অনুমতি আপনার নেই।"
+        backHref={`/admin/sales/${editId}`}
+        backText="← বিক্রয়ে ফিরে যান"
+      />
+    );
+  }
 
   let catalog = await getSaleCatalog(canViewCost);
   let draft: PosDraftInit | undefined;
 
-  if (draftId) {
-    const d = await getDraftForEdit(draftId);
+  if (targetId) {
+    const d = await getDraftForEdit(targetId, kind === "sale" ? "CONFIRMED" : "DRAFT");
     if (!d) {
       return (
-        <div>
-          <h1 className="mb-4 text-2xl font-bold">ড্রাফট এডিট</h1>
-          <p className="rounded-md bg-red-50 p-3 text-sm text-red-700">
-            ড্রাফট পাওয়া যায়নি। এটা হয়তো কনফার্ম বা ডিলিট হয়ে গেছে।
-          </p>
-          <p className="mt-3 text-sm">
-            <Link href="/admin/sales?status=DRAFT" className="text-blue-600 hover:underline">
-              ← ড্রাফটের তালিকা
-            </Link>
-          </p>
-        </div>
+        <Message
+          title={title}
+          text={
+            kind === "sale"
+              ? "বিক্রয় পাওয়া যায়নি, অথবা এটা কনফার্ম হওয়া বিক্রয় নয়।"
+              : "ড্রাফট পাওয়া যায়নি। এটা হয়তো কনফার্ম বা ডিলিট হয়ে গেছে।"
+          }
+          backHref="/admin/sales"
+          backText="← বিক্রয়ের তালিকা"
+        />
       );
     }
 
-    // এই ড্রাফটে আটকে থাকা স্টক এডিটের সময় "পাওয়া যায়" ধরা হবে
+    // এই বিক্রয়ে আগেই কাটা স্টক এডিটের সময় "পাওয়া যায়" ধরা হবে
     const reserved = new Map<string, number>();
     for (const it of d.items) {
       reserved.set(it.variantId, (reserved.get(it.variantId) ?? 0) + it.quantity);
@@ -49,12 +86,17 @@ export default async function PosPage({ searchParams }: Props) {
     );
 
     const lines: PosDraftInit["lines"] = [];
-    let missing = false;
     for (const it of d.items) {
       const row = catalog.find((c) => c.id === it.variantId);
       if (!row) {
-        missing = true;
-        break;
+        return (
+          <Message
+            title={title}
+            text="এর কোনো পণ্য এখন বন্ধ আছে, তাই এডিট করা যাচ্ছে না। পণ্যটা চালু করুন।"
+            backHref={`/admin/sales/${d.id}`}
+            backText="← ফিরে যান"
+          />
+        );
       }
       lines.push({
         ...row,
@@ -63,25 +105,9 @@ export default async function PosPage({ searchParams }: Props) {
       });
     }
 
-    if (missing) {
-      return (
-        <div>
-          <h1 className="mb-4 text-2xl font-bold">ড্রাফট এডিট</h1>
-          <p className="rounded-md bg-red-50 p-3 text-sm text-red-700">
-            এই ড্রাফটের কোনো পণ্য এখন বন্ধ আছে, তাই এডিট করা যাচ্ছে না। পণ্যটা চালু করুন
-            অথবা ড্রাফট ডিলিট করুন।
-          </p>
-          <p className="mt-3 text-sm">
-            <Link href={`/admin/sales/${d.id}`} className="text-blue-600 hover:underline">
-              ← ড্রাফটে ফিরে যান
-            </Link>
-          </p>
-        </div>
-      );
-    }
-
     draft = {
       id: d.id,
+      kind,
       saleNumber: d.saleNumber,
       customer: d.customer,
       looseName: d.looseName,
@@ -96,11 +122,9 @@ export default async function PosPage({ searchParams }: Props) {
 
   return (
     <div>
-      <h1 className="mb-4 text-2xl font-bold">
-        {draft ? "ড্রাফট এডিট" : "দোকানে বিক্রয়"}
-      </h1>
+      <h1 className="mb-4 text-2xl font-bold">{draft ? title : "দোকানে বিক্রয়"}</h1>
       <PosForm
-        key={draft?.id ?? "new"}
+        key={draft ? `${draft.kind}-${draft.id}` : "new"}
         canViewCost={canViewCost}
         catalog={catalog}
         draft={draft}

@@ -21,7 +21,8 @@ function taka(n: number): string {
 }
 
 export default async function SaleDetailPage({ params }: Props) {
-    await requirePermission("pos.sell");
+      const staff = await requirePermission("pos.sell");
+  const canEdit = staff.permissions.includes("sales.edit");
 
   const { id } = await params;
   if (!id || id.length > 50) notFound();
@@ -53,14 +54,29 @@ export default async function SaleDetailPage({ params }: Props) {
               ড্রাফট
             </span>
           )}
+                    {s.edits.length > 0 && (
+            <span className="ml-3 rounded-full bg-blue-100 px-3 py-1 text-xs font-medium text-blue-800">
+              সংশোধিত
+            </span>
+          )}
         </h1>
-        <Link
-          href={`/admin/print/sale/${s.id}`}
-          target="_blank"
-          className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
-        >
-          মেমো প্রিন্ট
-        </Link>
+                <span className="flex flex-wrap items-center gap-2">
+          {s.status === "CONFIRMED" && canEdit && (
+            <Link
+              href={`/admin/pos?edit=${s.id}`}
+              className="rounded-md border border-blue-600 px-4 py-2 text-sm font-medium text-blue-700 hover:bg-blue-50"
+            >
+              সংশোধন করুন
+            </Link>
+          )}
+          <Link
+            href={`/admin/print/sale/${s.id}`}
+            target="_blank"
+            className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+          >
+            মেমো প্রিন্ট
+          </Link>
+        </span>
       </div>
       <p className="mb-4 text-sm text-gray-600">
         {s.customerId ? (
@@ -150,6 +166,30 @@ export default async function SaleDetailPage({ params }: Props) {
           <span className="font-bold">{taka(s.due)}</span>
         </p>
       </div>
+            {s.edits.length > 0 && (
+        <div className="mt-4 rounded-lg border border-gray-200 bg-white p-4 text-sm">
+          <h2 className="mb-2 font-bold">সংশোধনের ইতিহাস</h2>
+          <ul className="divide-y divide-gray-100">
+            {s.edits.map((e) => (
+              <li key={e.id} className="py-2">
+                <p className="text-xs text-gray-500">
+                  {new Date(e.createdAt).toLocaleString("en-GB", {
+                    day: "2-digit",
+                    month: "short",
+                    year: "numeric",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                    timeZone: "Asia/Dhaka",
+                  })}{" "}
+                  · {e.staffName}
+                </p>
+                <p>{e.summary}</p>
+                {e.reason && <p className="text-xs text-gray-600">কারণ: {e.reason}</p>}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       {s.note && (
         <p className="mt-4 whitespace-pre-line rounded-md bg-white p-3 text-sm text-gray-700">

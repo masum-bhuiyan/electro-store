@@ -8,6 +8,7 @@ import {
   type DraftResult,
 } from "@/modules/sales/draft-mutations";
 import { updateDraft } from "@/modules/sales/draft-update";
+import { editSale } from "@/modules/sales/edit-sale";
 import {
   findBelowCost,
   findSaleCustomerByPhone,
@@ -113,4 +114,22 @@ export async function updateDraftAction(
     staff.name,
     staff.permissions.includes("customers.manage")
   );
+}
+// কনফার্ম হওয়া বিক্রয়ের সংশোধন (sales.edit লাগবে)
+export async function editSaleAction(
+  id: unknown,
+  payload: unknown,
+  reason: unknown
+): Promise<CreateSaleResult> {
+  await requirePermission("pos.sell");
+  const staff = await requirePermission("sales.edit");
+  if (typeof id !== "string" || id.length === 0 || id.length > 50) {
+    return { ok: false, message: "বিক্রয় ঠিক নেই।" };
+  }
+
+  const checked = validateSale(payload, "CONFIRMED");
+  if (!checked.ok) return { ok: false, message: checked.message };
+
+  const why = typeof reason === "string" ? reason.trim().slice(0, 200) : "";
+  return editSale(id, checked.data, staff.name, why === "" ? null : why);
 }

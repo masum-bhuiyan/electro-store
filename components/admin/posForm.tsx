@@ -11,6 +11,7 @@ import {
   createSaleAction,
   saveDraftAction,
   updateDraftAction,
+    editSaleAction,
   lookupSaleCustomerAction,
   searchSaleCustomersAction,
 } from "@/app/(admin)/admin/(panel)/sales/actions";
@@ -30,6 +31,8 @@ type Line = SaleVariantRow & { quantity: string; unitPrice: string };
 // ড্রাফট এডিটের সময় পেজ থেকে আসা শুরুর তথ্য
 export type PosDraftInit = {
   id: string;
+    // draft = ড্রাফট এডিট, sale = কনফার্ম হওয়া বিক্রয়ের সংশোধন
+  kind: "draft" | "sale";
   saleNumber: string;
   customer: SaleCustomerRow | null;
   looseName: string;
@@ -101,6 +104,7 @@ export default function PosForm({
   const [extraDiscount, setExtraDiscount] = useState(draft?.extraDiscount ?? 0); // বিল বন্ধ করার ছাড়
   const [payMethod, setPayMethod] = useState(draft?.payMethod ?? "CASH");
   const [note, setNote] = useState(draft?.note ?? "");
+    const [reason, setReason] = useState(""); // সংশোধনের কারণ (ঐচ্ছিক)
 
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
@@ -313,11 +317,14 @@ export default function PosForm({
 
     let navigated = false;
     try {
-      const result = draft
-        ? await updateDraftAction(draft.id, payload, !asDraft)
-        : asDraft
-          ? await saveDraftAction(payload)
-          : await createSaleAction(payload);
+            const result =
+        draft && draft.kind === "sale"
+          ? await editSaleAction(draft.id, payload, reason)
+          : draft
+            ? await updateDraftAction(draft.id, payload, !asDraft)
+            : asDraft
+              ? await saveDraftAction(payload)
+              : await createSaleAction(payload);
       if (result.ok) {
         if (!asDraft) {
           // কনফার্ম হয়েছে: এখানেই মেমো দেখাই, প্রিন্টের বাটনসহ
@@ -370,7 +377,9 @@ export default function PosForm({
 
   const doneInfo = view === "done" ? done : null;
   const memo: MemoData = {
-    saleNumber: doneInfo?.saleNumber ?? null,
+        saleNumber:
+      doneInfo?.saleNumber ?? (draft?.kind === "sale" ? draft.saleNumber : null),
+    revised: draft?.kind === "sale",
     dateText: doneInfo?.dateText ?? nowText(),
     customerName: customer?.name ?? (custName.trim() || null),
     customerPhone: customer?.phone ?? (custPhone.trim() || null),
@@ -404,8 +413,9 @@ export default function PosForm({
 
         {doneInfo ? (
           <div className="rounded-md bg-green-50 p-3 text-sm text-green-700">
-            বিক্রয় কনফার্ম হয়েছে। মেমো নম্বর:{" "}
-            <span className="font-mono font-bold">{doneInfo.saleNumber}</span>। স্টক কমেছে।
+               {draft?.kind === "sale" ? "সংশোধন সংরক্ষণ হয়েছে।" : "বিক্রয় কনফার্ম হয়েছে।"} মেমো নম্বর:{" "}
+                       <span className="font-mono font-bold">{doneInfo.saleNumber}</span>।{" "}
+            {draft?.kind === "sale" ? "স্টক মিলিয়ে নেওয়া হয়েছে।" : "স্টক কমেছে।"}
           </div>
         ) : (
           <div className="flex flex-wrap items-center justify-between gap-3 rounded-md bg-yellow-50 p-3 text-sm text-yellow-800">
@@ -464,7 +474,11 @@ export default function PosForm({
                 disabled={saving}
                 className="rounded-md bg-green-600 px-6 py-2.5 font-medium text-white hover:bg-green-700 disabled:cursor-not-allowed disabled:bg-gray-300"
               >
-                {saving ? "সংরক্ষণ হচ্ছে..." : "অর্ডার কনফার্ম করুন"}
+                                {saving
+                  ? "সংরক্ষণ হচ্ছে..."
+                  : draft?.kind === "sale"
+                    ? "সংশোধন কনফার্ম করুন"
+                    : "অর্ডার কনফার্ম করুন"}
               </button>
             </>
           )}
@@ -483,17 +497,32 @@ export default function PosForm({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
-            {draft && (
+                  {draft && draft.kind === "draft" && (
         <p className="rounded-md bg-yellow-50 p-3 text-sm text-yellow-800">
           ড্রাফট এডিট করছেন: <span className="font-mono">{draft.saleNumber}</span>। পণ্য
           বদলালে স্টক শুধু পার্থক্য অনুযায়ী কমবে বা বাড়বে।
+        </p>
+      )}
+      {draft && draft.kind === "sale" && (
+        <p className="rounded-md bg-blue-50 p-3 text-sm text-blue-800">
+          কনফার্ম হওয়া বিক্রয় সংশোধন করছেন:{" "}
+          <span className="font-mono">{draft.saleNumber}</span>। মেমো নম্বর একই থাকবে, স্টক
+          শুধু পার্থক্য অনুযায়ী মিলবে, আর সংশোধনের লগ জমা থাকবে। ক্রেতা বদলানো যাবে না।
         </p>
       )}
       {/* ক্রেতা */}
       <div className="rounded-lg border border-gray-200 bg-white p-5">
         <p className="mb-2 text-sm font-medium text-gray-700">ক্রেতা</p>
 
-        {customer ? (
+               {draft?.kind === "sale" ? (
+          <div className="rounded-md bg-gray-50 p-3 text-sm">
+            <p className="font-medium">
+              {customer?.name ?? (custName.trim() || "Walk-in ক্রেতা")}
+            </p>
+            {customer && <p className="text-xs text-gray-600">{customer.phone}</p>}
+            <p className="mt-1 text-xs text-gray-500">সংশোধনে ক্রেতা বদলানো যায় না।</p>
+          </div>
+        ) : customer ? (
           <div className="flex flex-wrap items-center justify-between gap-3 rounded-md bg-blue-50 p-3 text-sm">
             <div>
               <p className="font-medium">
@@ -862,6 +891,20 @@ export default function PosForm({
             className={inputClass}
           />
         </label>
+                {draft?.kind === "sale" && (
+          <label className="block sm:col-span-2">
+            <span className="mb-1 block text-sm font-medium text-gray-700">
+              সংশোধনের কারণ (ঐচ্ছিক)
+            </span>
+            <input
+              type="text"
+              value={reason}
+              maxLength={200}
+              onChange={(e) => setReason(e.target.value)}
+              className={inputClass}
+            />
+          </label>
+        )}
       </div>
 
       {formError && (
