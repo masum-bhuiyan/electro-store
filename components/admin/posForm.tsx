@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   checkBelowCostAction,
   createSaleAction,
+  saveDraftAction,
   lookupSaleCustomerAction,
   searchSaleCustomersAction,
 } from "@/app/(admin)/admin/(panel)/sales/actions";
@@ -67,6 +68,7 @@ export default function PosForm({
 
   // পেমেন্ট
   const [paid, setPaid] = useState<string | null>(null); // null = পুরো টাকা
+  const [extraDiscount, setExtraDiscount] = useState(0); // বিল বন্ধ করার ছাড়
   const [payMethod, setPayMethod] = useState("CASH");
   const [note, setNote] = useState("");
 
@@ -206,20 +208,43 @@ export default function PosForm({
     setLines((prev) => prev.filter((l) => l.id !== id));
   }
 
+  // + / − বাটন: ১ থেকে স্টক পর্যন্ত
+  function changeQty(l: Line, delta: number) {
+    const current = Number(l.quantity) || 0;
+    const next = current + delta;
+    if (next < 1) return;
+    if (next > l.stock) {
+      setScanMsg(`"${l.name}": স্টকে মাত্র ${l.stock}টি আছে।`);
+      return;
+    }
+    setScanMsg(null);
+    updateLine(l.id, { quantity: String(next) });
+  }
+
   // শুধু দেখানোর হিসাব। আসল হিসাব সার্ভারে হয়
-  const total = round2(
+  const itemsTotal = round2(
     lines.reduce(
       (sum, l) => sum + (Number(l.quantity) || 0) * (Number(l.unitPrice) || 0),
       0
     )
   );
+  const totalQty = lines.reduce((sum, l) => sum + (Number(l.quantity) || 0), 0);
+  // ছাড় মোটের চেয়ে কম না হলে ধরা হবে না
+  const discount = extraDiscount > 0 && extraDiscount < itemsTotal ? extraDiscount : 0;
+  const total = round2(itemsTotal - discount); // প্রদেয় মোট
   const paidValue = paid === null ? String(total) : paid;
   const paidNumber = Number(paidValue) || 0;
   const due = round2(total - paidNumber);
   const hasCustomer = customer !== null || phoneDigits.length >= 11;
 
-  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
+  // বাকিটা ছাড় ধরে বিল বন্ধ
+  function closeBill() {
+    if (due <= 0 || paidNumber <= 0) return;
+    setPaid(paidValue);
+    setExtraDiscount(round2(discount + due));
+  }
+
+    async function submitSale(asDraft: boolean) {
     if (submitLock.current) return;
 
     submitLock.current = true;
@@ -234,7 +259,9 @@ export default function PosForm({
       newType: custType,
       note,
       payMethod,
-      paid: paidValue,
+      // ড্রাফটে টাকা না লিখলে পরিশোধ ০ (ক্রেতা এখনো দেননি)
+      paid: asDraft && paid === null ? "0" : paidValue,
+      extraDiscount: discount > 0 ? String(discount) : "0",
       items: lines.map((l) => ({
         variantId: l.id,
         quantity: l.quantity,
@@ -244,10 +271,14 @@ export default function PosForm({
 
     let navigated = false;
     try {
-      const result = await createSaleAction(payload);
+      const result = asDraft
+        ? await saveDraftAction(payload)
+        : await createSaleAction(payload);
       if (result.ok) {
         navigated = true;
-        router.push("/admin/sales?saved=1");
+        router.push(
+          asDraft ? "/admin/sales?status=DRAFT&saved=draft" : "/admin/sales?saved=1"
+        );
         return;
       }
       setFormError(result.message);
@@ -259,6 +290,11 @@ export default function PosForm({
         setSaving(false);
       }
     }
+  }
+
+  function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    void submitSale(false);
   }
 
   return (
@@ -431,10 +467,14 @@ export default function PosForm({
       {/* পণ্যের লাইন */}
       {lines.length > 0 && (
         <div className="space-y-3">
-          {lines.map((l) => {
+          <p className="text-sm font-medium text-gray-700">
+            মোট পণ্য: {lines.length}টি (মোট পরিমাণ {totalQty})
+          </p>
+
+          {lines.map((l, idx) => {
             const qty = Number(l.quantity) || 0;
             const unit = Number(l.unitPrice) || 0;
-            const discount = l.price > 0 ? ((l.price - unit) / l.price) * 100 : 0;
+            const discountPct = l.price > 0 ? ((l.price - unit) / l.price) * 100 : 0;
             const isLoss = lossIds.includes(l.id);
             const lossAmount =
               canViewCost && l.costPrice !== null && unit < l.costPrice
@@ -444,11 +484,16 @@ export default function PosForm({
             return (
               <div key={l.id} className="rounded-lg border border-gray-200 bg-white p-4">
                 <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="font-medium">{l.name}</p>
-                    <p className="text-xs text-gray-500">
-                      {l.sku} · স্টক {l.stock} · আসল দাম {taka(l.price)}
-                    </p>
+                  <div className="flex gap-3">
+                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-blue-100 text-sm font-bold text-blue-700">
+                      {idx + 1}
+                    </span>
+                    <div>
+                      <p className="font-medium">{l.name}</p>
+                      <p className="text-xs text-gray-500">
+                        {l.sku} · স্টক {l.stock} · আসল দাম {taka(l.price)}
+                      </p>
+                    </div>
                   </div>
                   <button
                     type="button"
@@ -460,16 +505,41 @@ export default function PosForm({
                 </div>
 
                 <div className="mt-3 grid gap-3 sm:grid-cols-3">
-                  <label className="block">
+                  <div className="block">
                     <span className="mb-1 block text-xs font-medium text-gray-600">পরিমাণ</span>
-                    <input
-                      type="text"
-                      inputMode="numeric"
-                      value={l.quantity}
-                      onChange={(e) => updateLine(l.id, { quantity: e.target.value })}
-                      className={inputClass}
-                    />
-                  </label>
+                    <div className="flex">
+                      <button
+                        type="button"
+                        onClick={() => changeQty(l, -1)}
+                        disabled={qty <= 1}
+                        aria-label="কমান"
+                        className="w-11 rounded-l-md border border-gray-300 bg-gray-50 text-lg hover:bg-gray-100 disabled:cursor-not-allowed disabled:text-gray-300"
+                      >
+                        −
+                      </button>
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        value={l.quantity}
+                        onChange={(e) => updateLine(l.id, { quantity: e.target.value })}
+                        className="w-full border-y border-gray-300 px-3 py-2 text-center text-sm focus:border-blue-600 focus:outline-none"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => changeQty(l, 1)}
+                        disabled={qty >= l.stock}
+                        aria-label="বাড়ান"
+                        className="w-11 rounded-r-md border border-gray-300 bg-gray-50 text-lg hover:bg-gray-100 disabled:cursor-not-allowed disabled:text-gray-300"
+                      >
+                        +
+                      </button>
+                    </div>
+                    {qty > l.stock && (
+                      <p className="mt-1 text-xs text-red-600">
+                        স্টকে মাত্র {l.stock}টি আছে।
+                      </p>
+                    )}
+                  </div>
                   <label className="block">
                     <span className="mb-1 block text-xs font-medium text-gray-600">
                       বিক্রয় দাম (প্রতিটি)
@@ -490,11 +560,11 @@ export default function PosForm({
                 </div>
 
                 <div className="mt-2 space-y-1 text-sm">
-                  {Math.abs(discount) >= 0.05 && (
+                  {Math.abs(discountPct) >= 0.05 && (
                     <p className="text-gray-600">
-                      {discount > 0
-                        ? `ছাড়: ${discount.toFixed(1)}%`
-                        : `আসল দামের চেয়ে ${Math.abs(discount).toFixed(1)}% বেশি`}
+                      {discountPct > 0
+                        ? `ছাড়: ${discountPct.toFixed(1)}%`
+                        : `আসল দামের চেয়ে ${Math.abs(discountPct).toFixed(1)}% বেশি`}
                     </p>
                   )}
                   {isLoss && (
@@ -514,16 +584,43 @@ export default function PosForm({
       {/* মোট, পরিশোধ, বাকি */}
       <div className="grid gap-4 rounded-lg border border-gray-200 bg-white p-5 sm:grid-cols-2">
         <div className="space-y-1 text-sm">
+          {discount > 0 && (
+            <>
+              <p className="text-gray-600">পণ্যের মোট: {taka(itemsTotal)}</p>
+              <p className="text-gray-600">
+                অতিরিক্ত ছাড়: − {taka(discount)}{" "}
+                <button
+                  type="button"
+                  onClick={() => setExtraDiscount(0)}
+                  className="ml-1 text-xs text-blue-600 hover:underline"
+                >
+                  ছাড় বাতিল
+                </button>
+              </p>
+            </>
+          )}
           <p>
             মোট: <span className="text-lg font-bold">{taka(total)}</span>
           </p>
           <p className={due > 0 ? "text-red-600" : "text-gray-700"}>
             বাকি: <span className="font-bold">{taka(due)}</span>
           </p>
+          {due < 0 && (
+            <p className="text-xs text-red-600">পরিশোধ মোটের চেয়ে বেশি হয়ে গেছে।</p>
+          )}
           {due > 0 && !hasCustomer && (
             <p className="text-xs text-red-600">
               বাকিতে বিক্রি করতে ক্রেতার মোবাইল নম্বর দিন।
             </p>
+          )}
+          {due > 0 && paidNumber > 0 && (
+            <button
+              type="button"
+              onClick={closeBill}
+              className="mt-2 rounded-md border border-green-600 px-3 py-2 text-sm font-medium text-green-700 hover:bg-green-50"
+            >
+              বিল পরিশোধিত করুন (বাকি {taka(due)} ছাড়)
+            </button>
           )}
         </div>
 
@@ -581,13 +678,26 @@ export default function PosForm({
         <p className="rounded-md bg-red-50 p-3 text-sm text-red-700">{formError}</p>
       )}
 
-      <button
-        type="submit"
-        disabled={saving || lines.length === 0}
-        className="rounded-md bg-blue-600 px-6 py-2.5 font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-gray-300 disabled:text-gray-600"
-      >
-        {saving ? "সংরক্ষণ হচ্ছে..." : "বিক্রয় সংরক্ষণ করুন"}
-      </button>
+            <div className="flex flex-wrap gap-3">
+        <button
+          type="button"
+          disabled={saving || lines.length === 0}
+          onClick={() => void submitSale(true)}
+          className="rounded-md border border-blue-600 px-6 py-2.5 font-medium text-blue-700 hover:bg-blue-50 disabled:cursor-not-allowed disabled:border-gray-300 disabled:text-gray-400"
+        >
+          ড্রাফট রাখুন
+        </button>
+        <button
+          type="submit"
+          disabled={saving || lines.length === 0}
+          className="rounded-md bg-blue-600 px-6 py-2.5 font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-gray-300 disabled:text-gray-600"
+        >
+          {saving ? "সংরক্ষণ হচ্ছে..." : "বিক্রয় সংরক্ষণ করুন"}
+        </button>
+      </div>
+      <p className="text-xs text-gray-500">
+        ড্রাফটে স্টক আটকে থাকে (অন্য কেউ নিতে পারবে না)। ক্রেতা না এলে ড্রাফট মুছলে স্টক ফেরত আসে।
+      </p>
     </form>
   );
 }

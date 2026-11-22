@@ -19,19 +19,24 @@ function makeSaleNumber(): string {
   return `SAL-${yy}${mm}${dd}-${randomInt(100000, 999999)}`;
 }
 
+// ড্রাফট বা কনফার্মড বিক্রয় তৈরি। দুই ক্ষেত্রেই স্টক কাটে
 export async function createSale(
   input: SaleInput,
   staffName: string,
   canCreateCustomer: boolean
 ): Promise<CreateSaleResult> {
+  const isDraft = input.status === "DRAFT";
+
   // একই ক্রমে স্টক কমালে দুটো একসাথে চললেও আটকে যায় না
   const items = [...input.items].sort((a, b) =>
     a.variantId.localeCompare(b.variantId)
   );
-  const subtotal = items.reduce(
+  const itemsTotal = items.reduce(
     (sum, it) => sum.plus(it.unitPrice.times(it.quantity)),
     new Prisma.Decimal(0)
   );
+  // subtotal = অতিরিক্ত ছাড়ের পরের প্রদেয় মোট
+  const subtotal = itemsTotal.minus(input.extraDiscount);
   const saleNumber = makeSaleNumber();
 
   try {
@@ -88,11 +93,16 @@ export async function createSale(
             customerName = made.name;
             customerPhone = made.phone;
           }
-        } else if (input.paid.lt(subtotal)) {
+        } else if (!isDraft) {
           // walk-in ক্রেতার বাকি দেওয়া যাবে না
-          throw new SaleError(
-            "বাকিতে বিক্রি করতে ক্রেতার ফোন নম্বর দিন। walk-in ক্রেতার পুরো টাকা নিতে হবে।"
-          );
+          if (input.paid.lt(subtotal)) {
+            throw new SaleError(
+              "বাকিতে বিক্রি করতে ক্রেতার ফোন নম্বর দিন। walk-in ক্রেতার পুরো টাকা নিতে হবে।"
+            );
+          }
+        } else {
+          // ড্রাফট: ফোন ছাড়া শুধু নাম
+          customerName = input.looseName;
         }
 
         const itemRows: Prisma.SaleItemCreateWithoutSaleInput[] = [];
@@ -127,7 +137,9 @@ export async function createSale(
               variantId: v.id,
               change: -it.quantity,
               reason: "SALE",
-              note: `${saleNumber} — ${staffName}`,
+              note: isDraft
+                ? `${saleNumber} (ড্রাফট) — ${staffName}`
+                : `${saleNumber} — ${staffName}`,
             },
           });
 
@@ -144,11 +156,13 @@ export async function createSale(
         return tx.sale.create({
           data: {
             saleNumber,
+            status: input.status,
             customerId,
             customerType,
             customerName,
             customerPhone,
             subtotal,
+            extraDiscount: input.extraDiscount,
             paid: input.paid,
             payMethod: input.payMethod,
             note: input.note,

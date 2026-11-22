@@ -3,6 +3,11 @@
 import { requirePermission } from "@/modules/auth/session";
 import { createSale, type CreateSaleResult } from "@/modules/sales/create-sale";
 import {
+  confirmDraft,
+  deleteDraft,
+  type DraftResult,
+} from "@/modules/sales/draft-mutations";
+import {
   findBelowCost,
   findSaleCustomerByPhone,
   searchSaleCustomers,
@@ -47,7 +52,7 @@ export async function createSaleAction(
 ): Promise<CreateSaleResult> {
   const staff = await requirePermission("pos.sell");
 
-  const checked = validateSale(payload);
+  const checked = validateSale(payload, "CONFIRMED");
   if (!checked.ok) return { ok: false, message: checked.message };
 
   return createSale(
@@ -55,4 +60,35 @@ export async function createSaleAction(
     staff.name,
     staff.permissions.includes("customers.manage")
   );
+}
+
+export async function saveDraftAction(
+  payload: unknown
+): Promise<CreateSaleResult> {
+  const staff = await requirePermission("pos.sell");
+
+  const checked = validateSale(payload, "DRAFT");
+  if (!checked.ok) return { ok: false, message: checked.message };
+
+  return createSale(
+    checked.data,
+    staff.name,
+    staff.permissions.includes("customers.manage")
+  );
+}
+
+export async function deleteDraftAction(id: unknown): Promise<DraftResult> {
+  const staff = await requirePermission("pos.sell");
+  if (typeof id !== "string" || id.length === 0 || id.length > 50) {
+    return { ok: false, message: "ড্রাফট ঠিক নেই।" };
+  }
+  return deleteDraft(id, staff.name);
+}
+
+export async function confirmDraftAction(id: unknown): Promise<DraftResult> {
+  await requirePermission("pos.sell");
+  if (typeof id !== "string" || id.length === 0 || id.length > 50) {
+    return { ok: false, message: "ড্রাফট ঠিক নেই।" };
+  }
+  return confirmDraft(id);
 }

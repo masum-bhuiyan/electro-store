@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import DraftActions from "@/components/admin/draftActions";
 import { customerTypeLabel } from "@/lib/customer-type";
 import { requirePermission } from "@/modules/auth/session";
 import { getAdminSale } from "@/modules/sales/admin";
@@ -53,7 +54,23 @@ export default async function SaleDetailPage({ params }: Props) {
           ← বিক্রয়ের তালিকা
         </Link>
       </p>
-      <h1 className="mb-1 text-2xl font-bold">{s.saleNumber}</h1>
+            <div className="mb-1 flex flex-wrap items-center justify-between gap-3">
+              <h1 className="text-2xl font-bold">
+          {s.saleNumber}
+          {s.status === "DRAFT" && (
+            <span className="ml-3 rounded-full bg-yellow-100 px-3 py-1 text-xs font-medium text-yellow-800">
+              ড্রাফট
+            </span>
+          )}
+        </h1>
+        <Link
+          href={`/admin/print/sale/${s.id}`}
+          target="_blank"
+          className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+        >
+          মেমো প্রিন্ট
+        </Link>
+      </div>
       <p className="mb-4 text-sm text-gray-600">
         {s.customerId ? (
           <Link href={`/admin/customers/${s.customerId}`} className="text-blue-600 hover:underline">
@@ -69,6 +86,14 @@ export default async function SaleDetailPage({ params }: Props) {
         {when}
         {" · "}বিক্রি করেছেন: {s.staffName}
       </p>
+            {s.status === "DRAFT" && (
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-md bg-yellow-50 p-3 text-sm text-yellow-800">
+          <span>
+            এটা ড্রাফট। পণ্যের স্টক আটকে আছে। ক্রেতা এলে কনফার্ম করুন, না এলে ডিলিট করুন।
+          </span>
+          <DraftActions saleId={s.id} showConfirm afterDelete="list" />
+        </div>
+      )}
 
       <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white">
         <table className="w-full min-w-[560px] text-left text-sm">
@@ -104,6 +129,12 @@ export default async function SaleDetailPage({ params }: Props) {
       </div>
 
       <div className="mt-4 max-w-sm space-y-1 rounded-lg border border-gray-200 bg-white p-4 text-sm">
+                {s.extraDiscount > 0 && (
+          <p className="flex justify-between text-gray-600">
+            <span>অতিরিক্ত ছাড় (বিল বন্ধ)</span>
+            <span>− {taka(s.extraDiscount)}</span>
+          </p>
+        )}
         <p className="flex justify-between">
           <span>মোট</span>
           <span className="font-bold">{taka(s.total)}</span>
@@ -121,12 +152,12 @@ export default async function SaleDetailPage({ params }: Props) {
         </p>
       </div>
 
-      {canViewCost && (
+          {canViewCost && s.status === "CONFIRMED" && (
         <div className="mt-4 max-w-sm rounded-lg border border-gray-200 bg-white p-4 text-sm">
           <p className="flex justify-between">
             <span>এই বিক্রয়ের লাভ</span>
-            <span className={`font-bold ${profit < 0 ? "text-red-600" : "text-green-700"}`}>
-              {taka(profit)}
+            <span className={`font-bold ${profit - s.extraDiscount < 0 ? "text-red-600" : "text-green-700"}`}>
+              {taka(profit - s.extraDiscount)}
             </span>
           </p>
           {missingCost > 0 && (

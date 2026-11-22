@@ -1,12 +1,14 @@
 import type { Prisma } from "@/generated/prisma/client";
 import type { CustomerTypeKey } from "@/lib/customer-type";
 import { prisma } from "@/lib/prisma";
+import type { SaleStatusKey } from "@/modules/sales/validation";
 
 export const SALES_PAGE_SIZE = 20;
 
 export type SaleRow = {
   id: string;
   saleNumber: string;
+  status: SaleStatusKey;
   customerName: string | null;
   customerType: CustomerTypeKey;
   total: number;
@@ -26,6 +28,7 @@ export type SaleDetail = SaleRow & {
   customerId: string | null;
   customerPhone: string | null;
   payMethod: string;
+  extraDiscount: number;
   note: string | null;
   staffName: string;
   items: {
@@ -39,12 +42,19 @@ export type SaleDetail = SaleRow & {
   }[];
 };
 
+export async function getDraftCount(): Promise<number> {
+  return prisma.sale.count({ where: { status: "DRAFT" } });
+}
+
 export async function getAdminSales(params: {
   q?: string;
   type?: CustomerTypeKey;
+  status?: SaleStatusKey;
   page?: number;
 }): Promise<SaleList> {
-  const where: Prisma.SaleWhereInput = {};
+  // ডিফল্টে শুধু কনফার্মড বিক্রয়
+  const status: SaleStatusKey = params.status ?? "CONFIRMED";
+  const where: Prisma.SaleWhereInput = { status };
 
   if (params.type) where.customerType = params.type;
 
@@ -63,7 +73,11 @@ export async function getAdminSales(params: {
 
   const rows = await prisma.sale.findMany({
     where,
-    orderBy: [{ createdAt: "desc" }, { id: "asc" }],
+    // ড্রাফটে পুরনোগুলো আগে (রোজ চেকের জন্য), বিক্রয়ে নতুনগুলো আগে
+    orderBy: [
+      { createdAt: status === "DRAFT" ? "asc" : "desc" },
+      { id: "asc" },
+    ],
     skip: (page - 1) * SALES_PAGE_SIZE,
     take: SALES_PAGE_SIZE,
   });
@@ -71,6 +85,7 @@ export async function getAdminSales(params: {
   const items: SaleRow[] = rows.map((s) => ({
     id: s.id,
     saleNumber: s.saleNumber,
+    status: s.status,
     customerName: s.customerName,
     customerType: s.customerType,
     total: Number(s.subtotal),
@@ -95,6 +110,7 @@ export async function getAdminSale(
   return {
     id: s.id,
     saleNumber: s.saleNumber,
+    status: s.status,
     customerName: s.customerName,
     customerType: s.customerType,
     customerId: s.customerId,
@@ -104,6 +120,7 @@ export async function getAdminSale(
     due: Number(s.subtotal.minus(s.paid)),
     createdAt: s.createdAt.toISOString(),
     payMethod: s.payMethod,
+    extraDiscount: Number(s.extraDiscount),
     note: s.note,
     staffName: s.staffName,
     items: s.items.map((i) => ({

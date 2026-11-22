@@ -17,6 +17,7 @@ export default async function CustomerDetailPage({ params }: Props) {
   const staff = await requirePermission("customers.view");
   const canManage = staff.permissions.includes("customers.manage");
   const canSeeOrders = staff.permissions.includes("orders.view");
+  const canSeeSales = staff.permissions.includes("pos.sell");
 
   const { id } = await params;
   if (!id || id.length > 50) notFound();
@@ -91,9 +92,61 @@ export default async function CustomerDetailPage({ params }: Props) {
                 ))}
               </ul>
             )}
-            <p className="mt-4 text-xs text-gray-500">
-              দোকানের (POS) বিক্রি ERP-3 শেষ হলে এখানে যোগ হবে।
+          
+          </section>
+                    <section className="rounded-lg border border-gray-200 bg-white p-5">
+            <h2 className="mb-3 text-lg font-bold">দোকানের (POS) বিক্রির ইতিহাস</h2>
+            <p className="mb-4 text-sm text-gray-600">
+              মোট বিক্রি: {customer.pos.saleCount}টি · মোট কেনা:{" "}
+              <span className="font-bold">{formatPrice(customer.pos.totalBought)}</span>
+              {" · "}
+              <span
+                className={
+                  customer.pos.totalDue > 0 ? "font-bold text-red-600" : "text-gray-600"
+                }
+              >
+                বাকি: {formatPrice(customer.pos.totalDue)}
+              </span>
             </p>
+
+            {customer.recentSales.length === 0 ? (
+              <p className="text-sm text-gray-500">
+                দোকানে এখনো কোনো বিক্রি নেই।
+              </p>
+            ) : (
+              <ul className="divide-y divide-gray-200 text-sm">
+                {customer.recentSales.map((s) => (
+                  <li
+                    key={s.id}
+                    className="flex flex-wrap items-center justify-between gap-2 py-3"
+                  >
+                    <span>
+                      {canSeeSales ? (
+                        <Link
+                          href={`/admin/sales/${s.id}`}
+                          className="font-mono font-medium hover:text-blue-600"
+                        >
+                          {s.saleNumber}
+                        </Link>
+                      ) : (
+                        <span className="font-mono font-medium">{s.saleNumber}</span>
+                      )}
+                      <span className="ml-3 text-xs text-gray-500">
+                        {formatDateTime(s.createdAt)}
+                      </span>
+                    </span>
+                    <span className="flex items-center gap-3">
+                      {s.due > 0 && (
+                        <span className="text-xs text-red-600">
+                          বাকি {formatPrice(s.due)}
+                        </span>
+                      )}
+                      <span>{formatPrice(s.total)}</span>
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
           </section>
 
           {canManage && (

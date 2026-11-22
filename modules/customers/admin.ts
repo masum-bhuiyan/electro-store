@@ -41,7 +41,21 @@ export type AdminCustomerDetail = {
     total: number;
     createdAt: string;
   }[];
+  // দোকানের (POS) বিক্রি: এই ক্রেতার রেকর্ডের সাথে যুক্ত বিক্রি
+  pos: { saleCount: number; totalBought: number; totalDue: number };
+  recentSales: {
+    id: string;
+    saleNumber: string;
+    total: number;
+    paid: number;
+    due: number;
+    createdAt: string;
+  }[];
 };
+
+function round2(n: number): number {
+  return Math.round(n * 100) / 100;
+}
 
 // প্রতিটা ধরনে কয়জন ক্রেতা (তালিকার ট্যাবের সংখ্যার জন্য)
 export async function getCustomerTypeCounts(): Promise<
@@ -104,7 +118,7 @@ export async function getAdminCustomer(
   const c = await prisma.customer.findUnique({ where: { id } });
   if (!c) return null;
 
-  const [agg, recent] = await Promise.all([
+  const [agg, recent, saleAgg, recentSales] = await Promise.all([
     prisma.order.aggregate({
       where: { phone: c.phone, status: { not: "CANCELLED" } },
       _count: { _all: true },
@@ -122,7 +136,27 @@ export async function getAdminCustomer(
         createdAt: true,
       },
     }),
+    prisma.sale.aggregate({
+            where: { customerId: c.id, status: "CONFIRMED" },
+      _count: { _all: true },
+      _sum: { subtotal: true, paid: true },
+    }),
+    prisma.sale.findMany({
+            where: { customerId: c.id, status: "CONFIRMED" },
+      orderBy: { createdAt: "desc" },
+      take: 10,
+      select: {
+        id: true,
+        saleNumber: true,
+        subtotal: true,
+        paid: true,
+        createdAt: true,
+      },
+    }),
   ]);
+
+  const posTotal = Number(saleAgg._sum.subtotal ?? 0);
+  const posPaid = Number(saleAgg._sum.paid ?? 0);
 
   return {
     id: c.id,
@@ -144,6 +178,19 @@ export async function getAdminCustomer(
       status: o.status,
       total: Number(o.total),
       createdAt: o.createdAt.toISOString(),
+    })),
+    pos: {
+      saleCount: saleAgg._count._all,
+      totalBought: round2(posTotal),
+      totalDue: round2(posTotal - posPaid),
+    },
+    recentSales: recentSales.map((s) => ({
+      id: s.id,
+      saleNumber: s.saleNumber,
+      total: Number(s.subtotal),
+      paid: Number(s.paid),
+      due: round2(Number(s.subtotal) - Number(s.paid)),
+      createdAt: s.createdAt.toISOString(),
     })),
   };
 }

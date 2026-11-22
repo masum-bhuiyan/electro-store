@@ -17,6 +17,8 @@ export const SALE_PAY_LABELS: Record<SalePayMethodKey, string> = {
   BANK: "ব্যাংক",
 };
 
+export type SaleStatusKey = "DRAFT" | "CONFIRMED";
+
 export type SaleItemInput = {
   variantId: string;
   quantity: number;
@@ -24,14 +26,18 @@ export type SaleItemInput = {
 };
 
 export type SaleInput = {
+  status: SaleStatusKey;
   // খালি হলে walk-in
   customerId: string | null;
   customerType: CustomerTypeKey;
-    // সেভ করা ক্রেতা না বাছলে, নাম+ফোন দিয়ে পুরনো ক্রেতা খোঁজা বা নতুন বানানো
+  // সেভ করা ক্রেতা না বাছলে, নাম+ফোন দিয়ে পুরনো ক্রেতা খোঁজা বা নতুন বানানো
   newCustomer: { name: string | null; phone: string; type: CustomerTypeKey } | null;
+  // শুধু ড্রাফটে: ফোন ছাড়া শুধু নাম দিলে (ক্রেতার রেকর্ড বানানো হয় না)
+  looseName: string | null;
   note: string | null;
   payMethod: SalePayMethodKey;
   paid: Prisma.Decimal;
+  extraDiscount: Prisma.Decimal;
   items: SaleItemInput[];
 };
 
@@ -50,7 +56,10 @@ function text(value: unknown, max: number): string | null {
   return s === "" ? null : s;
 }
 
-export function validateSale(raw: unknown): ValidateSaleResult {
+export function validateSale(
+  raw: unknown,
+  status: SaleStatusKey = "CONFIRMED"
+): ValidateSaleResult {
   if (!raw || typeof raw !== "object") {
     return { ok: false, message: "তথ্য ঠিক নেই।" };
   }
@@ -67,9 +76,11 @@ export function validateSale(raw: unknown): ValidateSaleResult {
   }
 
   const customerType = isCustomerType(r.customerType) ? r.customerType : "RETAIL";
-    let newCustomer: SaleInput["newCustomer"] = null;
+  const customerId = text(r.customerId, 100);
+
+  let newCustomer: SaleInput["newCustomer"] = null;
   const newPhoneRaw = String(r.newPhone ?? "").trim();
-  if (!text(r.customerId, 100) && newPhoneRaw !== "") {
+  if (!customerId && newPhoneRaw !== "") {
     const phone = normalizePhone(newPhoneRaw);
     if (!phone) {
       return { ok: false, message: "ক্রেতার মোবাইল নম্বর ঠিক নেই (যেমন 01712345678)।" };
@@ -83,6 +94,18 @@ export function validateSale(raw: unknown): ValidateSaleResult {
       phone,
       type: isCustomerType(r.newType) ? r.newType : "RETAIL",
     };
+  }
+
+  // ফোন ছাড়া শুধু নাম: শুধু ড্রাফটে কাজে লাগে
+  let looseName: string | null = null;
+  if (status === "DRAFT" && !customerId && !newCustomer) {
+    looseName = text(r.newName, 80);
+    if (looseName !== null && looseName.length < 2) {
+      return { ok: false, message: "ক্রেতার নাম কমপক্ষে ২ অক্ষর লিখুন।" };
+    }
+    if (looseName === null) {
+      return { ok: false, message: "ড্রাফটে ক্রেতার নাম বা মোবাইল নম্বর দিন।" };
+    }
   }
 
   const payMethod = (SALE_PAY_METHODS as readonly string[]).includes(
@@ -126,23 +149,37 @@ export function validateSale(raw: unknown): ValidateSaleResult {
     return { ok: false, message: "মোট টাকা অনেক বেশি হয়ে গেছে।" };
   }
 
+  const extraDiscount = parseMoney(
+    String(r.extraDiscount ?? "").trim() === "" ? "0" : r.extraDiscount
+  );
+  if (!extraDiscount) {
+    return { ok: false, message: "অতিরিক্ত ছাড়ের টাকা ঠিক নেই।" };
+  }
+  if (extraDiscount.gt(0) && extraDiscount.gte(total)) {
+    return { ok: false, message: "অতিরিক্ত ছাড় মোটের চেয়ে কম হতে হবে।" };
+  }
+  const netTotal = total.minus(extraDiscount);
+
   const paid = parseMoney(
     String(r.paid ?? "").trim() === "" ? "0" : r.paid
   );
   if (!paid) return { ok: false, message: "পরিশোধের টাকা ঠিক নেই।" };
-  if (paid.gt(total)) {
-    return { ok: false, message: "পরিশোধ মোটের চেয়ে বেশি হতে পারে না।" };
+  if (paid.gt(netTotal)) {
+    return { ok: false, message: "পরিশোধ প্রদেয় মোটের চেয়ে বেশি হতে পারে না।" };
   }
 
   return {
     ok: true,
     data: {
-      customerId: text(r.customerId, 100),
+      status,
+      customerId,
       customerType,
       newCustomer,
+      looseName,
       note: text(r.note, 500),
       payMethod,
       paid,
+      extraDiscount,
       items,
     },
   };

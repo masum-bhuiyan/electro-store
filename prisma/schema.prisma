@@ -349,11 +349,18 @@ enum SalePayMethod {
   NAGAD
   BANK
 }
+// বিক্রয়ের অবস্থা: ড্রাফটে স্টক আটকে থাকে, কনফার্মে বিক্রয় চূড়ান্ত
+enum SaleStatus {
+  DRAFT
+  CONFIRMED
+}
 
 // দোকানের (POS) বিক্রয়
 model Sale {
   id           String        @id @default(cuid())
   saleNumber   String        @unique
+  // পুরনো সব বিক্রয় CONFIRMED হিসেবেই থাকবে
+  status       SaleStatus    @default(CONFIRMED)
   // সেভ করা ক্রেতা। walk-in হলে খালি
   customerId   String?
   customer     Customer?     @relation(fields: [customerId], references: [id])
@@ -363,6 +370,8 @@ model Sale {
   customerName String?
   customerPhone String?
   subtotal     Decimal       @db.Decimal(12, 2)
+  // বিল বন্ধ করতে দেওয়া অতিরিক্ত ছাড়। subtotal এই ছাড়ের পরের প্রদেয় মোট
+  extraDiscount Decimal      @default(0) @db.Decimal(12, 2)
   paid         Decimal       @default(0) @db.Decimal(12, 2)
   payMethod    SalePayMethod @default(CASH)
   note         String?
@@ -373,6 +382,7 @@ model Sale {
   @@index([customerId])
   @@index([createdAt])
   @@index([customerType])
+  @@index([status])
 }
 
 model SaleItem {

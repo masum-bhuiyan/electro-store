@@ -3,6 +3,13 @@ const raw = process.env.SITE_URL || "https://your-site.hostingersite.com";
 export const SITE_URL = raw.replace(/\/+$/, "");
 
 export const SHOP_NAME = "Bhuiyan Tools";
+// মেমোতে ব্যবহারের পুরো নাম, ঠিকানা ও সময়
+export const SHOP_LEGAL_NAME = "Bhuiyan International & Telecom";
+// মেমোতে ছাপার ওয়েবসাইট (ডোমেইন বদলালে শুধু এখানে বদলান)
+export const SHOP_WEBSITE = "bhuiyantools.com";
+export const SHOP_ADDRESS =
+  "4/148, Gulistan Shopping Complex (5th Floor), Dhaka-1000";
+export const SHOP_HOURS = "Sat–Thu 10:00 AM – 8:00 PM";
 
 // প্রধান নম্বর (WhatsApp-এও এটাই) আর দ্বিতীয় নম্বর
 export const SHOP_PHONE = "01741-850132";
