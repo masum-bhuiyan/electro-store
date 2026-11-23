@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import CustomerForm from "@/components/admin/customerForm";
+import CollectDueForm from "@/components/admin/collectDueForm";
 import OrderStatusBadge from "@/components/admin/orderStatusBadge";
 import { customerTypeLabel } from "@/lib/customer-type";
 import { formatDateTime, formatPrice } from "@/lib/format";
@@ -18,6 +19,7 @@ export default async function CustomerDetailPage({ params }: Props) {
   const canManage = staff.permissions.includes("customers.manage");
   const canSeeOrders = staff.permissions.includes("orders.view");
   const canSeeSales = staff.permissions.includes("pos.sell");
+    const canCollect = staff.permissions.includes("money.manage");
 
   const { id } = await params;
   if (!id || id.length > 50) notFound();
@@ -95,17 +97,88 @@ export default async function CustomerDetailPage({ params }: Props) {
           
           </section>
                     <section className="rounded-lg border border-gray-200 bg-white p-5">
+            <h2 className="mb-3 text-lg font-bold">বাকি ও আদায়ের হিসাব</h2>
+            <div className="grid gap-3 sm:grid-cols-3">
+              <div className="rounded-md bg-gray-50 p-3">
+                <p className="text-xs text-gray-500">দোকান থেকে মোট কেনা</p>
+                <p className="mt-1 text-lg font-bold">{formatPrice(customer.pos.totalBought)}</p>
+              </div>
+              <div className="rounded-md bg-gray-50 p-3">
+                <p className="text-xs text-gray-500">মোট জমা (বিক্রির সময় + পরে)</p>
+                <p className="mt-1 text-lg font-bold">
+                  {formatPrice(customer.pos.salesPaid + customer.pos.collected)}
+                </p>
+              </div>
+              <div className="rounded-md bg-gray-50 p-3">
+                <p className="text-xs text-gray-500">
+                  {customer.pos.totalDue < 0 ? "ক্রেতার অগ্রিম জমা" : "বর্তমান বাকি"}
+                </p>
+                <p
+                  className={`mt-1 text-lg font-bold ${
+                    customer.pos.totalDue > 0
+                      ? "text-red-600"
+                      : customer.pos.totalDue < 0
+                        ? "text-green-700"
+                        : "text-gray-700"
+                  }`}
+                >
+                  {formatPrice(Math.abs(customer.pos.totalDue))}
+                </p>
+              </div>
+            </div>
+
+            {canCollect && (
+              <div className="mt-5 border-t border-gray-200 pt-4">
+                <h3 className="mb-3 font-semibold">বাকি আদায় / অগ্রিম নিন</h3>
+                <CollectDueForm customerId={customer.id} balance={customer.pos.totalDue} />
+              </div>
+            )}
+
+            {customer.payments.length > 0 && (
+              <div className="mt-5 border-t border-gray-200 pt-4">
+                <h3 className="mb-2 font-semibold">আদায়ের ইতিহাস</h3>
+                <ul className="divide-y divide-gray-200 text-sm">
+                  {customer.payments.map((p) => (
+                    <li
+                      key={p.id}
+                      className="flex flex-wrap items-center justify-between gap-2 py-2"
+                    >
+                      <span>
+                        <Link
+                          href={`/admin/print/receipt/${p.id}`}
+                          className="font-mono font-medium text-blue-600 hover:underline"
+                        >
+                          {p.paymentNumber}
+                        </Link>
+                        <span className="ml-3 text-xs text-gray-500">
+                          {formatDateTime(p.createdAt)} · {p.methodLabel} · {p.staffName}
+                        </span>
+                      </span>
+                      <span className="font-medium text-green-700">{formatPrice(p.amount)}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </section>
+                    <section className="rounded-lg border border-gray-200 bg-white p-5">
             <h2 className="mb-3 text-lg font-bold">দোকানের (POS) বিক্রির ইতিহাস</h2>
             <p className="mb-4 text-sm text-gray-600">
               মোট বিক্রি: {customer.pos.saleCount}টি · মোট কেনা:{" "}
               <span className="font-bold">{formatPrice(customer.pos.totalBought)}</span>
               {" · "}
-              <span
+                            <span
                 className={
-                  customer.pos.totalDue > 0 ? "font-bold text-red-600" : "text-gray-600"
+                  customer.pos.totalDue > 0
+                    ? "font-bold text-red-600"
+                    : customer.pos.totalDue < 0
+                      ? "font-bold text-green-700"
+                      : "text-gray-600"
                 }
               >
-                বাকি: {formatPrice(customer.pos.totalDue)}
+                {customer.pos.totalDue < 0
+                  ? `জমা: ${formatPrice(-customer.pos.totalDue)}`
+                  : `বাকি: ${formatPrice(customer.pos.totalDue)}`}
               </span>
             </p>
 

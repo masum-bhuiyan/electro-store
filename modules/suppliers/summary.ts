@@ -1,13 +1,18 @@
 import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
+import { SALE_PAY_LABELS, type SalePayMethodKey } from "@/modules/sales/validation";
 
 export type SupplierSummary = {
   purchaseCount: number;
   totalBought: number;
+  // বিল করার সময় যা দেওয়া হয়েছিল
   totalPaid: number;
+  // পরে "টাকা দিন" ফর্ম দিয়ে যা দেওয়া হয়েছে
+  laterPaid: number;
   totalReturned: number;
   cashReceived: number;
-  // বাকি = কেনা − পরিশোধ − ফেরতের মূল্য + নগদ ফেরত। মাইনাস মানে সাপ্লায়ার আপনাকে দেবে
+  // বাকি = কেনা − বিলের সময় পরিশোধ − ফেরতের মূল্য + নগদ ফেরত − পরের পেমেন্ট
+  // মাইনাস মানে সাপ্লায়ার আপনাকে দেবে
   due: number;
   recent: {
     id: string;
@@ -18,12 +23,21 @@ export type SupplierSummary = {
     due: number;
     createdAt: string;
   }[];
+  recentPayments: {
+    id: string;
+    paymentNumber: string;
+    amount: number;
+    methodLabel: string;
+    balanceAfter: number;
+    staffName: string;
+    createdAt: string;
+  }[];
 };
 
 export async function getSupplierSummary(
   supplierId: string
 ): Promise<SupplierSummary> {
-  const [agg, ret, recent] = await Promise.all([
+  const [agg, ret, pay, recent, payments] = await Promise.all([
     prisma.purchase.aggregate({
       where: { supplierId },
       _sum: { total: true, paid: true },
@@ -32,6 +46,10 @@ export async function getSupplierSummary(
     prisma.purchaseReturn.aggregate({
       where: { supplierId },
       _sum: { total: true, cashReceived: true },
+    }),
+    prisma.supplierPayment.aggregate({
+      where: { supplierId },
+      _sum: { amount: true },
     }),
     prisma.purchase.findMany({
       where: { supplierId },
@@ -46,6 +64,20 @@ export async function getSupplierSummary(
         createdAt: true,
       },
     }),
+    prisma.supplierPayment.findMany({
+      where: { supplierId },
+      orderBy: [{ createdAt: "desc" }, { id: "asc" }],
+      take: 10,
+      select: {
+        id: true,
+        paymentNumber: true,
+        amount: true,
+        method: true,
+        balanceAfter: true,
+        staffName: true,
+        createdAt: true,
+      },
+    }),
   ]);
 
   const zero = new Prisma.Decimal(0);
@@ -53,14 +85,16 @@ export async function getSupplierSummary(
   const paid = agg._sum.paid ?? zero;
   const returned = ret._sum.total ?? zero;
   const cash = ret._sum.cashReceived ?? zero;
+  const later = pay._sum.amount ?? zero;
 
   return {
     purchaseCount: agg._count,
     totalBought: Number(total),
     totalPaid: Number(paid),
+    laterPaid: Number(later),
     totalReturned: Number(returned),
     cashReceived: Number(cash),
-    due: Number(total.minus(paid).minus(returned).plus(cash)),
+    due: Number(total.minus(paid).minus(returned).plus(cash).minus(later)),
     recent: recent.map((p) => ({
       id: p.id,
       purchaseNumber: p.purchaseNumber,
@@ -68,6 +102,15 @@ export async function getSupplierSummary(
       total: Number(p.total),
       paid: Number(p.paid),
       due: Number(p.total.minus(p.paid)),
+      createdAt: p.createdAt.toISOString(),
+    })),
+    recentPayments: payments.map((p) => ({
+      id: p.id,
+      paymentNumber: p.paymentNumber,
+      amount: Number(p.amount),
+      methodLabel: SALE_PAY_LABELS[p.method as SalePayMethodKey] ?? p.method,
+      balanceAfter: Number(p.balanceAfter),
+      staffName: p.staffName,
       createdAt: p.createdAt.toISOString(),
     })),
   };

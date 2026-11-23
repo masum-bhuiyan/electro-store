@@ -162,6 +162,7 @@ model Customer {
   isActive    Boolean      @default(true)
   orders      Order[]
   sales       Sale[]
+  payments    CustomerPayment[]
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
 
@@ -179,6 +180,7 @@ model Supplier {
   isActive    Boolean  @default(true)
   purchases   Purchase[]
   purchaseReturns PurchaseReturn[]
+  payments    SupplierPayment[]
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }
@@ -416,4 +418,42 @@ model SaleEdit {
   createdAt DateTime @default(now())
 
   @@index([saleId])
+}
+
+// ক্রেতার কাছ থেকে পরে বাকি আদায় (মোট বাকিতে, বিল-ভিত্তিক নয়)
+model CustomerPayment {
+  id            String        @id @default(cuid())
+  paymentNumber String        @unique
+  customerId    String
+  customer      Customer      @relation(fields: [customerId], references: [id])
+  amount        Decimal       @db.Decimal(12, 2)
+  method        SalePayMethod @default(CASH)
+  // রসিদের জন্য সেভের সময়ের হিসাব। ঋণাত্মক মানে ক্রেতার জমা আছে
+  balanceBefore Decimal       @db.Decimal(12, 2)
+  balanceAfter  Decimal       @db.Decimal(12, 2)
+  note          String?
+  staffName     String
+  createdAt     DateTime      @default(now())
+
+  @@index([customerId])
+  @@index([createdAt])
+}
+
+// সাপ্লায়ারকে বিলের পরে টাকা দেওয়া
+model SupplierPayment {
+  id            String        @id @default(cuid())
+  paymentNumber String        @unique
+  supplierId    String
+  supplier      Supplier      @relation(fields: [supplierId], references: [id])
+  amount        Decimal       @db.Decimal(12, 2)
+  method        SalePayMethod @default(CASH)
+  // ঋণাত্মক মানে সাপ্লায়ার আপনাকে দেবে
+  balanceBefore Decimal       @db.Decimal(12, 2)
+  balanceAfter  Decimal       @db.Decimal(12, 2)
+  note          String?
+  staffName     String
+  createdAt     DateTime      @default(now())
+
+  @@index([supplierId])
+  @@index([createdAt])
 }

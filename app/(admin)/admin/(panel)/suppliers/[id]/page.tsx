@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import PaySupplierForm from "@/components/admin/paySupplierForm";
 import SupplierForm from "@/components/admin/supplierForm";
 import { requirePermission } from "@/modules/auth/session";
 import { getAdminSupplier } from "@/modules/suppliers/admin";
@@ -12,7 +13,7 @@ type Props = {
 };
 
 function taka(n: number): string {
-  return `৳${n.toLocaleString("en-US")}`;
+  return `৳${(Math.round(n * 100) / 100).toLocaleString("en-US")}`;
 }
 
 function dateText(iso: string): string {
@@ -25,7 +26,8 @@ function dateText(iso: string): string {
 }
 
 export default async function EditSupplierPage({ params }: Props) {
-  await requirePermission("purchase.manage");
+  const staff = await requirePermission("purchase.manage");
+  const canPay = staff.permissions.includes("money.manage");
 
   const { id } = await params;
   if (!id || id.length > 50) notFound();
@@ -47,7 +49,7 @@ export default async function EditSupplierPage({ params }: Props) {
         <p className="mb-4 text-sm text-gray-500">এই সাপ্লায়ার বন্ধ আছে।</p>
       )}
 
-          {/* হিসাবের সারাংশ */}
+      {/* হিসাবের সারাংশ */}
       <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <div className="rounded-lg border border-gray-200 bg-white p-4">
           <p className="text-xs text-gray-500">মোট কেনা ({summary.purchaseCount}টি বিল)</p>
@@ -55,7 +57,14 @@ export default async function EditSupplierPage({ params }: Props) {
         </div>
         <div className="rounded-lg border border-gray-200 bg-white p-4">
           <p className="text-xs text-gray-500">মোট পরিশোধ</p>
-          <p className="mt-1 text-xl font-bold">{taka(summary.totalPaid)}</p>
+          <p className="mt-1 text-xl font-bold">
+            {taka(summary.totalPaid + summary.laterPaid)}
+          </p>
+          {summary.laterPaid > 0 && (
+            <p className="mt-1 text-xs text-gray-500">
+              বিলের সময় {taka(summary.totalPaid)} + পরে {taka(summary.laterPaid)}
+            </p>
+          )}
         </div>
         <div className="rounded-lg border border-gray-200 bg-white p-4">
           <p className="text-xs text-gray-500">মাল ফেরত</p>
@@ -82,6 +91,68 @@ export default async function EditSupplierPage({ params }: Props) {
             {taka(Math.abs(summary.due))}
           </p>
         </div>
+      </div>
+
+      {/* টাকা দিন */}
+      {canPay && (
+        <section className="mt-6 rounded-lg border border-gray-200 bg-white p-5">
+          <h2 className="mb-3 text-lg font-semibold">সাপ্লায়ারকে টাকা দিন</h2>
+          <PaySupplierForm supplierId={supplier.id} balance={summary.due} />
+        </section>
+      )}
+
+      {/* পেমেন্টের ইতিহাস */}
+      <div className="mt-6">
+        <h2 className="mb-2 text-lg font-semibold">পেমেন্টের ইতিহাস</h2>
+        {summary.recentPayments.length === 0 ? (
+          <p className="rounded-lg border border-gray-200 bg-white p-4 text-sm text-gray-500">
+            বিলের পরে এখনো কোনো পেমেন্ট দেওয়া হয়নি।
+          </p>
+        ) : (
+          <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white">
+            <table className="w-full min-w-[520px] text-left text-sm">
+              <thead className="border-b border-gray-200 bg-gray-50 text-gray-600">
+                <tr>
+                  <th className="px-3 py-2">তারিখ</th>
+                  <th className="px-3 py-2">ভাউচার নং</th>
+                  <th className="px-3 py-2">মাধ্যম</th>
+                  <th className="px-3 py-2 text-right">টাকা</th>
+                  <th className="px-3 py-2 text-right">এরপর হিসাব</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {summary.recentPayments.map((p) => (
+                  <tr key={p.id}>
+                    <td className="px-3 py-2 whitespace-nowrap">{dateText(p.createdAt)}</td>
+                    <td className="px-3 py-2">
+                      <Link
+                        href={`/admin/print/voucher/${p.id}`}
+                        className="font-mono text-blue-600 hover:underline"
+                      >
+                        {p.paymentNumber}
+                      </Link>
+                    </td>
+                    <td className="px-3 py-2">{p.methodLabel}</td>
+                    <td className="px-3 py-2 text-right font-medium">{taka(p.amount)}</td>
+                    <td
+                      className={`px-3 py-2 text-right ${
+                        p.balanceAfter > 0
+                          ? "text-red-600"
+                          : p.balanceAfter < 0
+                            ? "text-green-700"
+                            : "text-gray-500"
+                      }`}
+                    >
+                      {p.balanceAfter < 0
+                        ? `${taka(-p.balanceAfter)} (জমা)`
+                        : taka(p.balanceAfter)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
 
       {/* সাম্প্রতিক ক্রয় */}
@@ -166,9 +237,6 @@ export default async function EditSupplierPage({ params }: Props) {
           note: supplier.note,
         }}
       />
-      <p className="mt-4 text-xs text-gray-500">
-        বাকি শোধের হিসাব (সাপ্লায়ারকে পরে টাকা দেওয়া) ERP-5 শেষ হলে এখানে আসবে।
-      </p>
     </div>
   );
 }

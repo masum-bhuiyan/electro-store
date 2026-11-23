@@ -2,6 +2,8 @@ import type { Prisma } from "@/generated/prisma/client";
 import type { CustomerTypeKey } from "@/lib/customer-type";
 import type { OrderStatusKey } from "@/lib/order-status";
 import { prisma } from "@/lib/prisma";
+import { getCustomerBalance } from "@/modules/payments/balance";
+import { SALE_PAY_LABELS, type SalePayMethodKey } from "@/modules/sales/validation";
 
 export const CUSTOMERS_PAGE_SIZE = 20;
 
@@ -42,7 +44,23 @@ export type AdminCustomerDetail = {
     createdAt: string;
   }[];
   // দোকানের (POS) বিক্রি: এই ক্রেতার রেকর্ডের সাথে যুক্ত বিক্রি
-  pos: { saleCount: number; totalBought: number; totalDue: number };
+    // totalDue = বিক্রয়ের বাকি − পরে আদায়। ঋণাত্মক = ক্রেতার অগ্রিম জমা
+  pos: {
+    saleCount: number;
+    totalBought: number;
+    totalDue: number;
+    salesPaid: number;
+    collected: number;
+  };
+  payments: {
+    id: string;
+    paymentNumber: string;
+    amount: number;
+    methodLabel: string;
+    balanceAfter: number;
+    staffName: string;
+    createdAt: string;
+  }[];
   recentSales: {
     id: string;
     saleNumber: string;
@@ -118,7 +136,7 @@ export async function getAdminCustomer(
   const c = await prisma.customer.findUnique({ where: { id } });
   if (!c) return null;
 
-  const [agg, recent, saleAgg, recentSales] = await Promise.all([
+  const [agg, recent, saleAgg, recentSales, bal, payRows] = await Promise.all([
     prisma.order.aggregate({
       where: { phone: c.phone, status: { not: "CANCELLED" } },
       _count: { _all: true },
@@ -137,12 +155,11 @@ export async function getAdminCustomer(
       },
     }),
     prisma.sale.aggregate({
-            where: { customerId: c.id, status: "CONFIRMED" },
+      where: { customerId: c.id, status: "CONFIRMED" },
       _count: { _all: true },
-      _sum: { subtotal: true, paid: true },
     }),
     prisma.sale.findMany({
-            where: { customerId: c.id, status: "CONFIRMED" },
+      where: { customerId: c.id, status: "CONFIRMED" },
       orderBy: { createdAt: "desc" },
       take: 10,
       select: {
@@ -153,10 +170,13 @@ export async function getAdminCustomer(
         createdAt: true,
       },
     }),
+    getCustomerBalance(prisma, c.id),
+    prisma.customerPayment.findMany({
+      where: { customerId: c.id },
+      orderBy: { createdAt: "desc" },
+      take: 10,
+    }),
   ]);
-
-  const posTotal = Number(saleAgg._sum.subtotal ?? 0);
-  const posPaid = Number(saleAgg._sum.paid ?? 0);
 
   return {
     id: c.id,
@@ -181,9 +201,20 @@ export async function getAdminCustomer(
     })),
     pos: {
       saleCount: saleAgg._count._all,
-      totalBought: round2(posTotal),
-      totalDue: round2(posTotal - posPaid),
+      totalBought: round2(Number(bal.salesTotal)),
+      totalDue: round2(Number(bal.balance)),
+      salesPaid: round2(Number(bal.salesPaid)),
+      collected: round2(Number(bal.collected)),
     },
+    payments: payRows.map((p) => ({
+      id: p.id,
+      paymentNumber: p.paymentNumber,
+      amount: Number(p.amount),
+      methodLabel: SALE_PAY_LABELS[p.method as SalePayMethodKey] ?? p.method,
+      balanceAfter: Number(p.balanceAfter),
+      staffName: p.staffName,
+      createdAt: p.createdAt.toISOString(),
+    })),
     recentSales: recentSales.map((s) => ({
       id: s.id,
       saleNumber: s.saleNumber,
