@@ -1,6 +1,6 @@
 import { Prisma } from "@/generated/prisma/client";
 
-// সাপ্লায়ারের বাকি = কেনা − বিলের সময় পরিশোধ − ফেরতের মূল্য + নগদ ফেরত − পরের পেমেন্ট
+// সাপ্লায়ারের বাকি = পুরনো বাকি + কেনা − বিলের সময় পরিশোধ − ফেরতের মূল্য + নগদ ফেরত − পরের পেমেন্ট
 // ধনাত্মক = আমরা সাপ্লায়ারকে দেব, ঋণাত্মক = সাপ্লায়ার আমাদের দেবে
 export async function getSupplierBalance(
   db: Prisma.TransactionClient,
@@ -8,6 +8,10 @@ export async function getSupplierBalance(
 ): Promise<Prisma.Decimal> {
   const zero = new Prisma.Decimal(0);
 
+  const sup = await db.supplier.findUnique({
+    where: { id: supplierId },
+    select: { openingBalance: true },
+  });
   const purchases = await db.purchase.aggregate({
     where: { supplierId },
     _sum: { total: true, paid: true },
@@ -21,7 +25,8 @@ export async function getSupplierBalance(
     _sum: { amount: true },
   });
 
-  return (purchases._sum.total ?? zero)
+  return (sup?.openingBalance ?? zero)
+    .plus(purchases._sum.total ?? zero)
     .minus(purchases._sum.paid ?? zero)
     .minus(returns._sum.total ?? zero)
     .plus(returns._sum.cashReceived ?? zero)

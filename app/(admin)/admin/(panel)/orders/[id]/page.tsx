@@ -42,6 +42,13 @@ export default async function AdminOrderDetailPage({ params }: Props) {
       <div className="mb-6 flex flex-wrap items-center gap-3">
         <h1 className="font-mono text-2xl font-bold">{order.orderNumber}</h1>
         <OrderStatusBadge status={order.status} />
+                <Link
+          href={`/admin/print/order/${order.id}`}
+          target="_blank"
+          className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+        >
+          মেমো প্রিন্ট / PDF
+        </Link>
       </div>
       <p className="-mt-4 mb-6 text-sm text-gray-500">
         অর্ডারের সময়: {formatDateTime(order.createdAt)} · শেষ বদল:{" "}

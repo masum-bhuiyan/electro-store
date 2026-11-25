@@ -4,6 +4,9 @@ import { SALE_PAY_LABELS, type SalePayMethodKey } from "@/modules/sales/validati
 
 export type SupplierSummary = {
   purchaseCount: number;
+  // চালুর সময়ের পুরনো বাকি (ঋণাত্মক = সাপ্লায়ার আমাদের দেবে)
+  opening: number;
+  openingSet: boolean;
   totalBought: number;
   // বিল করার সময় যা দেওয়া হয়েছিল
   totalPaid: number;
@@ -37,7 +40,7 @@ export type SupplierSummary = {
 export async function getSupplierSummary(
   supplierId: string
 ): Promise<SupplierSummary> {
-  const [agg, ret, pay, recent, payments] = await Promise.all([
+    const [agg, ret, pay, recent, payments, sup] = await Promise.all([
     prisma.purchase.aggregate({
       where: { supplierId },
       _sum: { total: true, paid: true },
@@ -78,6 +81,10 @@ export async function getSupplierSummary(
         createdAt: true,
       },
     }),
+        prisma.supplier.findUnique({
+      where: { id: supplierId },
+      select: { openingBalance: true, openingSetAt: true },
+    }),
   ]);
 
   const zero = new Prisma.Decimal(0);
@@ -86,15 +93,18 @@ export async function getSupplierSummary(
   const returned = ret._sum.total ?? zero;
   const cash = ret._sum.cashReceived ?? zero;
   const later = pay._sum.amount ?? zero;
+  const opening = sup?.openingBalance ?? zero;
 
   return {
     purchaseCount: agg._count,
+    opening: Number(opening),
+    openingSet: sup?.openingSetAt != null,
     totalBought: Number(total),
     totalPaid: Number(paid),
     laterPaid: Number(later),
     totalReturned: Number(returned),
     cashReceived: Number(cash),
-    due: Number(total.minus(paid).minus(returned).plus(cash).minus(later)),
+    due: Number(opening.plus(total).minus(paid).minus(returned).plus(cash).minus(later)),
     recent: recent.map((p) => ({
       id: p.id,
       purchaseNumber: p.purchaseNumber,

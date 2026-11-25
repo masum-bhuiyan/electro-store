@@ -165,6 +165,10 @@ model Customer {
   sales       Sale[]
   payments    CustomerPayment[]
   saleReturns SaleReturn[]
+  // চালুর সময়ের পুরনো বাকি। ধনাত্মক = ক্রেতা আমাদের দেবে, ঋণাত্মক = ক্রেতার জমা। একবারই বসানো যায়
+  openingBalance Decimal   @default(0) @db.Decimal(12, 2)
+  openingSetAt   DateTime?
+  openingSetBy   String?
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
 
@@ -183,6 +187,10 @@ model Supplier {
   purchases   Purchase[]
   purchaseReturns PurchaseReturn[]
   payments    SupplierPayment[]
+  // চালুর সময়ের পুরনো বাকি। ধনাত্মক = আমরা সাপ্লায়ারকে দেব, ঋণাত্মক = সাপ্লায়ার আমাদের দেবে
+  openingBalance Decimal   @default(0) @db.Decimal(12, 2)
+  openingSetAt   DateTime?
+  openingSetBy   String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }

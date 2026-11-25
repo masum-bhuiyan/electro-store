@@ -36,7 +36,16 @@ export async function getCustomerReceipt(
   const p = await prisma.customerPayment.findUnique({
     where: { id },
     include: {
-      customer: { select: { id: true, name: true, phone: true, type: true } },
+            customer: {
+        select: {
+          id: true,
+          name: true,
+          phone: true,
+          type: true,
+          openingBalance: true,
+          openingSetAt: true,
+        },
+      },
     },
   });
   if (!p) return null;
@@ -67,20 +76,21 @@ export async function getCustomerReceipt(
         let pool = (coll._sum.amount ?? new Prisma.Decimal(0)).plus(
       rc._sum.creditAmount ?? new Prisma.Decimal(0)
     );
-    bills = [];
-    for (const s of sales) {
-      const due = s.subtotal.minus(s.paid);
-      if (due.lte(0)) continue;
-      const applied = Prisma.Decimal.min(due, pool);
+        bills = [];
+
+    // পুরনো বাকি সবচেয়ে পুরনো, তাই আদায়ের টাকা আগে সেখান থেকে কাটা
+    const openingDue = p.customer.openingBalance;
+    if (openingDue.gt(0)) {
+      const applied = Prisma.Decimal.min(openingDue, pool);
       pool = pool.minus(applied);
-      const remaining = due.minus(applied);
-      if (remaining.gt(0)) {
+      const remainingOpening = openingDue.minus(applied);
+      if (remainingOpening.gt(0)) {
         bills.push({
-          saleNumber: s.saleNumber,
-          createdAt: s.createdAt.toISOString(),
-          total: Number(s.subtotal),
-          dueAtSale: Number(due),
-          remaining: Number(remaining),
+          saleNumber: "পুরনো বাকি (চালুর সময়ের)",
+          createdAt: (p.customer.openingSetAt ?? p.createdAt).toISOString(),
+          total: Number(openingDue),
+          dueAtSale: Number(openingDue),
+          remaining: Number(remainingOpening),
         });
       }
     }

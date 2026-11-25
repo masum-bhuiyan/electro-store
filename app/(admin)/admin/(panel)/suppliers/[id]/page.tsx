@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import PaySupplierForm from "@/components/admin/paySupplierForm";
+import OpeningBalanceForm from "@/components/admin/openingBalanceForm";
 import SupplierForm from "@/components/admin/supplierForm";
 import { requirePermission } from "@/modules/auth/session";
 import { getAdminSupplier } from "@/modules/suppliers/admin";
@@ -90,6 +91,12 @@ export default async function EditSupplierPage({ params }: Props) {
           >
             {taka(Math.abs(summary.due))}
           </p>
+                    {summary.openingSet && (
+            <p className="mt-1 text-xs text-gray-500">
+              এর মধ্যে চালুর সময়ের পুরনো {summary.opening < 0 ? "পাওনা (সাপ্লায়ার দেবে)" : "বাকি"}:{" "}
+              {taka(Math.abs(summary.opening))}
+            </p>
+          )}
         </div>
       </div>
 
@@ -98,6 +105,15 @@ export default async function EditSupplierPage({ params }: Props) {
         <section className="mt-6 rounded-lg border border-gray-200 bg-white p-5">
           <h2 className="mb-3 text-lg font-semibold">সাপ্লায়ারকে টাকা দিন</h2>
           <PaySupplierForm supplierId={supplier.id} balance={summary.due} />
+        </section>
+      )}
+            {canPay && !summary.openingSet && (
+        <section className="mt-6 rounded-lg border border-gray-200 bg-white p-5">
+          <h2 className="mb-1 text-lg font-semibold">পুরনো খাতার বাকি বসান</h2>
+          <p className="mb-3 text-xs text-gray-500">
+            নতুন সিস্টেম চালুর আগের বাকি থাকলে একবার এখানে বসান। না থাকলে কিছু করতে হবে না।
+          </p>
+          <OpeningBalanceForm party="supplier" partyId={supplier.id} />
         </section>
       )}
 

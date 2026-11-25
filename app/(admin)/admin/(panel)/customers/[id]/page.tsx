@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import CustomerForm from "@/components/admin/customerForm";
 import CollectDueForm from "@/components/admin/collectDueForm";
+import OpeningBalanceForm from "@/components/admin/openingBalanceForm";
 import OrderStatusBadge from "@/components/admin/orderStatusBadge";
 import { customerTypeLabel } from "@/lib/customer-type";
 import { formatDateTime, formatPrice } from "@/lib/format";
@@ -37,6 +38,12 @@ export default async function CustomerDetailPage({ params }: Props) {
 
       <div className="mb-6 flex flex-wrap items-center gap-3">
         <h1 className="text-2xl font-bold">{customer.name}</h1>
+                <Link
+          href={`/admin/print/ledger/${customer.id}`}
+          className="rounded-md border border-blue-600 px-3 py-1 text-xs font-medium text-blue-700 hover:bg-blue-50"
+        >
+          খতিয়ান দেখুন
+        </Link>
         <span className="rounded-full bg-blue-100 px-3 py-1 text-xs font-medium text-blue-700">
           {customerTypeLabel(customer.type)}
         </span>
@@ -131,6 +138,22 @@ export default async function CustomerDetailPage({ params }: Props) {
                 </p>
               </div>
             </div>
+                        {customer.pos.openingSet && (
+              <p className="mt-3 text-xs text-gray-500">
+                চালুর সময়ের পুরনো {customer.pos.opening < 0 ? "জমা" : "বাকি"}:{" "}
+                {formatPrice(Math.abs(customer.pos.opening))} (এটা বর্তমান বাকির হিসাবে ধরা আছে)
+              </p>
+            )}
+
+            {canCollect && !customer.pos.openingSet && (
+              <div className="mt-5 border-t border-gray-200 pt-4">
+                <h3 className="mb-1 font-semibold">পুরনো খাতার বাকি বসান</h3>
+                <p className="mb-3 text-xs text-gray-500">
+                  নতুন সিস্টেম চালুর আগের বাকি থাকলে একবার এখানে বসান। না থাকলে কিছু করতে হবে না।
+                </p>
+                <OpeningBalanceForm party="customer" partyId={customer.id} />
+              </div>
+            )}
 
             {canCollect && (
               <div className="mt-5 border-t border-gray-200 pt-4">
