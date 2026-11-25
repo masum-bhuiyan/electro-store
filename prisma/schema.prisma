@@ -191,6 +191,7 @@ model Supplier {
   openingBalance Decimal   @default(0) @db.Decimal(12, 2)
   openingSetAt   DateTime?
   openingSetBy   String?
+  expenses    Expense[]
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }
@@ -513,4 +514,63 @@ model SaleReturnItem {
 
   @@index([returnId])
   @@index([saleItemId])
+}
+
+// খরচের ক্যাটাগরি (দোকান ভাড়া, বেতন ইত্যাদি)। মোছা যায় না, শুধু বন্ধ করা যায়
+model ExpenseCategory {
+  id        String    @id @default(cuid())
+  name      String    @unique
+  sortOrder Int       @default(0)
+  isActive  Boolean   @default(true)
+  expenses  Expense[]
+  createdAt DateTime  @default(now())
+}
+
+// দোকানের খরচ। বদলানো বা মোছা যায় না, ভুল হলে "বাতিল" করা হয়
+model Expense {
+  id            String          @id @default(cuid())
+  expenseNumber String          @unique
+  categoryId    String
+  category      ExpenseCategory @relation(fields: [categoryId], references: [id])
+  amount        Decimal         @db.Decimal(12, 2)
+  method        SalePayMethod   @default(CASH)
+  // খরচ যেদিন হয়েছে (ঢাকার তারিখ)
+  expenseDate   DateTime
+  note          String?
+  // কোন সাপ্লায়ার সংক্রান্ত খরচ (ঐচ্ছিক)
+  supplierId    String?
+  supplier      Supplier?       @relation(fields: [supplierId], references: [id])
+  staffName     String
+  voidedAt      DateTime?
+  voidedBy      String?
+  voidReason    String?
+  createdAt     DateTime        @default(now())
+
+  @@index([expenseDate])
+  @@index([categoryId])
+  @@index([supplierId])
+}
+
+// ক্যাশ বুকের হাতে লেখা এন্ট্রি: শুরুর জমা, মালিকের জমা, মালিকের তোলা
+enum CashEntryKind {
+  OPENING
+  DEPOSIT
+  WITHDRAW
+}
+
+model CashEntry {
+  id         String        @id @default(cuid())
+  entryNumber String       @unique
+  kind       CashEntryKind
+  method     SalePayMethod
+  amount     Decimal       @db.Decimal(12, 2)
+  entryDate  DateTime
+  note       String?
+  staffName  String
+  voidedAt   DateTime?
+  voidedBy   String?
+  voidReason String?
+  createdAt  DateTime      @default(now())
+
+  @@index([method, entryDate])
 }

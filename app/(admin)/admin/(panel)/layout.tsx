@@ -65,6 +65,16 @@ export default async function PanelLayout({
                 সাপ্লায়ার
               </Link>
             )}
+                        {can("money.manage") && (
+              <Link href="/admin/expenses" className="hover:text-blue-600">
+                খরচ
+              </Link>
+            )}
+            {can("money.manage") && (
+              <Link href="/admin/cash" className="hover:text-blue-600">
+                ক্যাশ ও ব্যাংক
+              </Link>
+            )}
             {can("staff.manage") && (
               <Link href="/admin/staff" className="hover:text-blue-600">
                 কর্মচারী
