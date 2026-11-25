@@ -108,6 +108,11 @@ export default async function CustomerDetailPage({ params }: Props) {
                 <p className="mt-1 text-lg font-bold">
                   {formatPrice(customer.pos.salesPaid + customer.pos.collected)}
                 </p>
+                                {customer.pos.returnCredit > 0 && (
+                  <p className="mt-1 text-xs text-gray-500">
+                    এছাড়া ফেরত মাল থেকে কাটা {formatPrice(customer.pos.returnCredit)}
+                  </p>
+                )}
               </div>
               <div className="rounded-md bg-gray-50 p-3">
                 <p className="text-xs text-gray-500">

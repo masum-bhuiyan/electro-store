@@ -73,10 +73,13 @@ export default function PosForm({
   canViewCost,
   catalog,
   draft,
+  initialCustomer,
 }: {
   canViewCost: boolean;
   catalog: SaleVariantRow[];
   draft?: PosDraftInit;
+  // বদলে নতুন মাল দেওয়ার সময় আগে থেকে বসানো ক্রেতা
+  initialCustomer?: SaleCustomerRow | null;
 }) {
   const router = useRouter();
   const submitLock = useRef(false);
@@ -86,7 +89,9 @@ export default function PosForm({
   const scanRef = useRef<HTMLInputElement>(null);
 
   // ক্রেতা
-  const [customer, setCustomer] = useState<SaleCustomerRow | null>(draft?.customer ?? null);
+    const [customer, setCustomer] = useState<SaleCustomerRow | null>(
+    draft?.customer ?? initialCustomer ?? null
+  );
   const [custName, setCustName] = useState(draft?.looseName ?? "");
   const [custPhone, setCustPhone] = useState("");
  const [custType, setCustType] = useState<CustomerTypeKey>(draft?.customerType ?? "RETAIL");

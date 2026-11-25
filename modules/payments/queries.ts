@@ -43,7 +43,7 @@ export async function getCustomerReceipt(
 
   let bills: ReceiptBill[] | null = null;
   if (withBills) {
-    const [sales, coll] = await Promise.all([
+        const [sales, coll, rc] = await Promise.all([
       prisma.sale.findMany({
         where: {
           customerId: p.customerId,
@@ -57,10 +57,16 @@ export async function getCustomerReceipt(
         where: { customerId: p.customerId, createdAt: { lte: p.createdAt } },
         _sum: { amount: true },
       }),
+      prisma.saleReturn.aggregate({
+        where: { customerId: p.customerId, createdAt: { lte: p.createdAt } },
+        _sum: { creditAmount: true },
+      }),
     ]);
 
     // আদায়ের টাকা পুরনো বিল থেকে আগে কাটা ধরা (শুধু দেখানোর হিসাব)
-    let pool = coll._sum.amount ?? new Prisma.Decimal(0);
+        let pool = (coll._sum.amount ?? new Prisma.Decimal(0)).plus(
+      rc._sum.creditAmount ?? new Prisma.Decimal(0)
+    );
     bills = [];
     for (const s of sales) {
       const due = s.subtotal.minus(s.paid);

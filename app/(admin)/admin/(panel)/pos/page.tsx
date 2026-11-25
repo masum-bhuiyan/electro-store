@@ -1,7 +1,7 @@
 import Link from "next/link";
 import PosForm, { type PosDraftInit } from "@/components/admin/posForm";
 import { requirePermission } from "@/modules/auth/session";
-import { getDraftForEdit } from "@/modules/sales/admin";
+import { getDraftForEdit, getSaleCustomerById } from "@/modules/sales/admin";
 import { getSaleCatalog } from "@/modules/sales/search";
 
 export const dynamic = "force-dynamic";
@@ -44,6 +44,10 @@ export default async function PosPage({ searchParams }: Props) {
   const targetId = editId ?? draftId;
   const kind: "draft" | "sale" = editId ? "sale" : "draft";
   const title = kind === "sale" ? "বিক্রয় সংশোধন" : "ড্রাফট এডিট";
+    // বদলে নতুন মাল দেওয়ার সময়: ?customer=<id>। শুধু নতুন বিক্রয়ে কাজ করে
+  const customerParam = first(sp.customer);
+  const initialCustomer =
+    !targetId && customerParam ? await getSaleCustomerById(customerParam) : null;
 
   if (editId && !staff.permissions.includes("sales.edit")) {
     return (
@@ -120,14 +124,21 @@ export default async function PosPage({ searchParams }: Props) {
     };
   }
 
-  return (
+    return (
     <div>
       <h1 className="mb-4 text-2xl font-bold">{draft ? title : "দোকানে বিক্রয়"}</h1>
+      {initialCustomer && (
+        <p className="mb-4 rounded-md bg-blue-50 p-3 text-sm text-blue-800">
+          বদলে নতুন মাল দিচ্ছেন। ক্রেতা বসানো আছে: <b>{initialCustomer.name}</b>। পণ্য
+          যোগ করে বিল করুন। (ফেরতের টাকা আগের ফেরত রসিদ অনুযায়ী মিটে গেছে।)
+        </p>
+      )}
       <PosForm
-        key={draft ? `${draft.kind}-${draft.id}` : "new"}
+        key={draft ? `${draft.kind}-${draft.id}` : `new-${initialCustomer?.id ?? ""}`}
         canViewCost={canViewCost}
         catalog={catalog}
         draft={draft}
+        initialCustomer={initialCustomer}
       />
     </div>
   );

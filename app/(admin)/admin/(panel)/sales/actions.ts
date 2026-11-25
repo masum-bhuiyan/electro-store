@@ -3,6 +3,11 @@
 import { requirePermission } from "@/modules/auth/session";
 import { createSale, type CreateSaleResult } from "@/modules/sales/create-sale";
 import {
+  createSaleReturn,
+  type SaleReturnResult,
+} from "@/modules/sales/return-mutations";
+import { validateSaleReturn } from "@/modules/sales/return-validation";
+import {
   confirmDraft,
   deleteDraft,
   type DraftResult,
@@ -132,4 +137,16 @@ export async function editSaleAction(
 
   const why = typeof reason === "string" ? reason.trim().slice(0, 200) : "";
   return editSale(id, checked.data, staff.name, why === "" ? null : why);
+}
+
+// ক্রেতার কাছ থেকে মাল ফেরত নেওয়া (পুরো বা আংশিক)
+export async function createSaleReturnAction(
+  payload: unknown
+): Promise<SaleReturnResult> {
+  const staff = await requirePermission("pos.sell");
+
+  const checked = validateSaleReturn(payload);
+  if (!checked.ok) return { ok: false, message: checked.message };
+
+  return createSaleReturn(checked.data, staff.name);
 }

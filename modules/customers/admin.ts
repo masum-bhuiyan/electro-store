@@ -51,6 +51,7 @@ export type AdminCustomerDetail = {
     totalDue: number;
     salesPaid: number;
     collected: number;
+    returnCredit: number;
   };
   payments: {
     id: string;
@@ -205,6 +206,7 @@ export async function getAdminCustomer(
       totalDue: round2(Number(bal.balance)),
       salesPaid: round2(Number(bal.salesPaid)),
       collected: round2(Number(bal.collected)),
+      returnCredit: round2(Number(bal.returnCredit)),
     },
     payments: payRows.map((p) => ({
       id: p.id,

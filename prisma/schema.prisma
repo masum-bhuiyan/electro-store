@@ -144,6 +144,7 @@ model ProductVariant {
   purchaseItems  PurchaseItem[]
   purchaseReturnItems PurchaseReturnItem[]
   saleItems           SaleItem[]
+ saleReturnItems     SaleReturnItem[]
 
   @@index([productId])
 }
@@ -163,6 +164,7 @@ model Customer {
   orders      Order[]
   sales       Sale[]
   payments    CustomerPayment[]
+  saleReturns SaleReturn[]
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
 
@@ -380,6 +382,7 @@ model Sale {
   staffName    String
   items        SaleItem[]
   edits        SaleEdit[]
+  returns      SaleReturn[]
   createdAt    DateTime      @default(now())
 
   @@index([customerId])
@@ -403,6 +406,7 @@ model SaleItem {
   // বিক্রির সময়ের গড় কেনা দাম (লাভ বের করতে)। দাম না থাকলে খালি
   unitCost  Decimal?       @db.Decimal(12, 2)
 
+  returnItems SaleReturnItem[]
   @@index([saleId])
   @@index([variantId])
 }
@@ -456,4 +460,49 @@ model SupplierPayment {
 
   @@index([supplierId])
   @@index([createdAt])
+}
+// ক্রেতার কাছ থেকে মাল ফেরত নেওয়া (কনফার্ম হওয়া বিক্রয় থেকে)
+model SaleReturn {
+  id           String           @id @default(cuid())
+  returnNumber String           @unique
+  saleId       String
+  sale         Sale             @relation(fields: [saleId], references: [id])
+  // walk-in হলে খালি
+  customerId   String?
+  customer     Customer?        @relation(fields: [customerId], references: [id])
+  // ফেরত নেওয়া মালের মূল্য (বিলের অতিরিক্ত ছাড়ের অনুপাতে কমানো)
+  total        Decimal          @db.Decimal(12, 2)
+  // ক্রেতার বাকি থেকে যত কাটা হয়েছে
+  creditAmount Decimal          @default(0) @db.Decimal(12, 2)
+  // ক্রেতাকে যত নগদ ফেরত দেওয়া হয়েছে
+  cashRefund   Decimal          @default(0) @db.Decimal(12, 2)
+  note         String?
+  staffName    String
+  items        SaleReturnItem[]
+  createdAt    DateTime         @default(now())
+
+  @@index([saleId])
+  @@index([customerId])
+  @@index([createdAt])
+}
+
+model SaleReturnItem {
+  id         String         @id @default(cuid())
+  returnId   String
+  return     SaleReturn     @relation(fields: [returnId], references: [id], onDelete: Cascade)
+  saleItemId String
+  saleItem   SaleItem       @relation(fields: [saleItemId], references: [id])
+  variantId  String
+  variant    ProductVariant @relation(fields: [variantId], references: [id])
+  name       String
+  quantity   Int
+  // বিক্রির সময়ের দাম
+  unitPrice  Decimal        @db.Decimal(12, 2)
+  // গড় কেনা দাম (লাভের হিসাবে ফেরত বাদ দিতে)
+  unitCost   Decimal?       @db.Decimal(12, 2)
+  // এই লাইনে ফেরতের মূল্য
+  amount     Decimal        @db.Decimal(12, 2)
+
+  @@index([returnId])
+  @@index([saleItemId])
 }

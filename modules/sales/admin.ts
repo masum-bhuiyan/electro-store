@@ -1,3 +1,4 @@
+import { getCustomerBalance } from "@/modules/payments/balance";
 import type { Prisma } from "@/generated/prisma/client";
 import type { CustomerTypeKey } from "@/lib/customer-type";
 import { prisma } from "@/lib/prisma";
@@ -24,10 +25,24 @@ export type SaleList = {
   page: number;
   totalPages: number;
 };
+export type SaleReturnSummary = {
+  id: string;
+  returnNumber: string;
+  total: number;
+  creditAmount: number;
+  cashRefund: number;
+  staffName: string;
+  note: string | null;
+  createdAt: string;
+  items: { name: string; quantity: number }[];
+};
 
 export type SaleDetail = SaleRow & {
   customerId: string | null;
   customerPhone: string | null;
+  returns: SaleReturnSummary[];
+  // ক্রেতার এখনকার মোট বাকি (walk-in হলে null)
+  customerBalance: number | null;
   payMethod: string;
   extraDiscount: number;
   note: string | null;
@@ -47,6 +62,7 @@ export type SaleDetail = SaleRow & {
     unitPrice: number;
     // কেনা দাম: শুধু costPrice.view থাকলে পাঠানো হয়, নইলে null
     unitCost: number | null;
+    returnedQty: number;
   }[];
 };
 
@@ -114,9 +130,20 @@ export async function getAdminSale(
        include: {
       items: { orderBy: { id: "asc" } },
       edits: { orderBy: { createdAt: "desc" } },
+      returns: { orderBy: { createdAt: "desc" }, include: { items: true } },
     },
   });
   if (!s) return null;
+  
+  const returnedMap = new Map<string, number>();
+  for (const r of s.returns) {
+    for (const ri of r.items) {
+      returnedMap.set(ri.saleItemId, (returnedMap.get(ri.saleItemId) ?? 0) + ri.quantity);
+    }
+  }
+  const customerBalance = s.customerId
+    ? Number((await getCustomerBalance(prisma, s.customerId)).balance)
+    : null;
 
   return {
     id: s.id,
@@ -126,6 +153,18 @@ export async function getAdminSale(
     customerType: s.customerType,
     customerId: s.customerId,
     customerPhone: s.customerPhone,
+        customerBalance,
+    returns: s.returns.map((r) => ({
+      id: r.id,
+      returnNumber: r.returnNumber,
+      total: Number(r.total),
+      creditAmount: Number(r.creditAmount),
+      cashRefund: Number(r.cashRefund),
+      staffName: r.staffName,
+      note: r.note,
+      createdAt: r.createdAt.toISOString(),
+      items: r.items.map((i) => ({ name: i.name, quantity: i.quantity })),
+    })),
     total: Number(s.subtotal),
     paid: Number(s.paid),
     due: Number(s.subtotal.minus(s.paid)),
@@ -148,6 +187,7 @@ export async function getAdminSale(
       listPrice: Number(i.listPrice),
       unitPrice: Number(i.unitPrice),
       unitCost: includeCost && i.unitCost ? Number(i.unitCost) : null,
+      returnedQty: returnedMap.get(i.id) ?? 0,
     })),
   };
 }
@@ -198,5 +238,30 @@ export async function getDraftForEdit(
       quantity: i.quantity,
       unitPrice: Number(i.unitPrice),
     })),
+  };
+}
+
+// POS-এ ক্রেতা আগে থেকে বসানোর জন্য (বদলে নতুন মাল দেওয়ার সময়)
+export async function getSaleCustomerById(
+  id: string
+): Promise<SaleCustomerRow | null> {
+  const c = await prisma.customer.findUnique({
+    where: { id },
+    select: {
+      id: true,
+      type: true,
+      name: true,
+      contactName: true,
+      phone: true,
+      isActive: true,
+    },
+  });
+  if (!c || !c.isActive) return null;
+  return {
+    id: c.id,
+    type: c.type,
+    name: c.name,
+    contactName: c.contactName,
+    phone: c.phone,
   };
 }

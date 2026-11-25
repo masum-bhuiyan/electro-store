@@ -42,6 +42,12 @@ export async function editSale(
         if (sale.status !== "CONFIRMED") {
           throw new EditError("শুধু কনফার্ম হওয়া বিক্রয় সংশোধন করা যায়।");
         }
+                const returnCount = await tx.saleReturn.count({ where: { saleId: id } });
+        if (returnCount > 0) {
+          throw new EditError(
+            "এই বিলে মাল ফেরত নেওয়া হয়েছে, তাই সংশোধন করা যাবে না।"
+          );
+        }
         if (!sale.customerId && input.paid.lt(subtotal)) {
           throw new EditError(
             "walk-in ক্রেতার বাকি রাখা যাবে না। পুরো টাকা নিন।"
