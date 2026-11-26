@@ -556,6 +556,7 @@ enum CashEntryKind {
   OPENING
   DEPOSIT
   WITHDRAW
+  TRANSFER
 }
 
 model CashEntry {
@@ -564,6 +565,11 @@ model CashEntry {
   kind       CashEntryKind
   method     SalePayMethod
   amount     Decimal       @db.Decimal(12, 2)
+  // শুধু TRANSFER-এ: কোন মাধ্যমে টাকা গেল (method = যেখান থেকে গেল)
+  toMethod   SalePayMethod?
+  // শুধু TRANSFER-এ: ব্যাংক/bKash চার্জ। এর জন্য একটা খরচ (Expense) নিজে তৈরি হয়
+  charge     Decimal       @default(0) @db.Decimal(12, 2)
+  chargeExpenseId String?
   entryDate  DateTime
   note       String?
   staffName  String

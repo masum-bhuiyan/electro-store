@@ -20,12 +20,25 @@ export default function CashEntryForm({ today }: { today: string }) {
   const lock = useRef(false);
   const [kind, setKind] = useState<CashKindKey>("OPENING");
   const [method, setMethod] = useState("CASH");
+  const [toMethod, setToMethod] = useState("CASH");
   const [amount, setAmount] = useState("");
+  const [charge, setCharge] = useState("");
   const [date, setDate] = useState(today);
   const [note, setNote] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [okMsg, setOkMsg] = useState<string | null>(null);
+
+  const isTransfer = kind === "TRANSFER";
+
+  function changeKind(k: CashKindKey) {
+    setKind(k);
+    // স্থানান্তরে সাধারণ ব্যবহার: ব্যাংক থেকে হাতে নগদ
+    if (k === "TRANSFER") {
+      setMethod("BANK");
+      setToMethod("CASH");
+    }
+  }
 
   async function submit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -44,9 +57,18 @@ export default function CashEntryForm({ today }: { today: string }) {
     setOkMsg(null);
 
     try {
-      const result = await createCashEntryAction({ kind, method, amount, date, note });
+      const result = await createCashEntryAction({
+        kind,
+        method,
+        toMethod: isTransfer ? toMethod : "",
+        amount,
+        charge: isTransfer ? charge : "",
+        date,
+        note,
+      });
       if (result.ok) {
         setAmount("");
+        setCharge("");
         setNote("");
         setOkMsg("সংরক্ষণ হয়েছে।");
         router.refresh();
@@ -68,7 +90,7 @@ export default function CashEntryForm({ today }: { today: string }) {
           <span className="mb-1 block text-xs font-medium text-gray-600">কী ধরনের এন্ট্রি</span>
           <select
             value={kind}
-            onChange={(e) => setKind(e.target.value as CashKindKey)}
+            onChange={(e) => changeKind(e.target.value as CashKindKey)}
             className={inputClass}
           >
             {CASH_KINDS.map((k) => (
@@ -79,7 +101,9 @@ export default function CashEntryForm({ today }: { today: string }) {
           </select>
         </label>
         <label className="block">
-          <span className="mb-1 block text-xs font-medium text-gray-600">কোন মাধ্যম</span>
+          <span className="mb-1 block text-xs font-medium text-gray-600">
+            {isTransfer ? "যেখান থেকে টাকা যাচ্ছে" : "কোন মাধ্যম"}
+          </span>
           <select
             value={method}
             onChange={(e) => setMethod(e.target.value)}
@@ -92,6 +116,24 @@ export default function CashEntryForm({ today }: { today: string }) {
             ))}
           </select>
         </label>
+        {isTransfer && (
+          <label className="block">
+            <span className="mb-1 block text-xs font-medium text-gray-600">
+              যেখানে টাকা যাচ্ছে
+            </span>
+            <select
+              value={toMethod}
+              onChange={(e) => setToMethod(e.target.value)}
+              className={inputClass}
+            >
+              {PAY_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
         <label className="block">
           <span className="mb-1 block text-xs font-medium text-gray-600">টাকা</span>
           <input
@@ -102,6 +144,21 @@ export default function CashEntryForm({ today }: { today: string }) {
             className={inputClass}
           />
         </label>
+        {isTransfer && (
+          <label className="block">
+            <span className="mb-1 block text-xs font-medium text-gray-600">
+              চার্জ (ঐচ্ছিক)
+            </span>
+            <input
+              type="text"
+              inputMode="decimal"
+              value={charge}
+              placeholder="০"
+              onChange={(e) => setCharge(e.target.value)}
+              className={inputClass}
+            />
+          </label>
+        )}
         <label className="block">
           <span className="mb-1 block text-xs font-medium text-gray-600">
             {kind === "OPENING" ? "চালুর তারিখ" : "তারিখ"}
@@ -131,6 +188,13 @@ export default function CashEntryForm({ today }: { today: string }) {
         <p className="text-xs text-gray-500">
           নতুন সিস্টেম চালুর দিনে ওই মাধ্যমে মোট যত টাকা আছে, তা লিখুন। ক্যাশ বুক এই তারিখ থেকে
           গোনা শুরু করবে।
+        </p>
+      )}
+      {isTransfer && (
+        <p className="text-xs text-gray-500">
+          যেমন ব্যাংক থেকে ১০,০০০ তুলে হাতে নিলে: যেখান থেকে = ব্যাংক, যেখানে = নগদ, টাকা = ১০০০০।
+          চার্জ কাটলে সেটা লিখুন, এটা নিজে থেকে খরচে যাবে (&quot;ব্যাংক ও মোবাইল ব্যাংকিং
+          চার্জ&quot;), আর চার্জের টাকাও &quot;যেখান থেকে&quot; মাধ্যম থেকে বাদ যাবে।
         </p>
       )}
 

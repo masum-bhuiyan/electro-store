@@ -4,6 +4,7 @@ import CashVoidButton from "@/components/admin/cashVoidButton";
 import { isCashIn } from "@/lib/cash-kind";
 import { requirePermission } from "@/modules/auth/session";
 import { getCashEntries, getOpeningStatuses } from "@/modules/cash/admin";
+import { getCashbook } from "@/modules/cash/book";
 import { dhakaToday } from "@/modules/expenses/validation";
 
 export const dynamic = "force-dynamic";
@@ -32,7 +33,11 @@ export default async function CashPage({ searchParams }: Props) {
   const pageRaw = Array.isArray(sp.page) ? sp.page[0] : sp.page;
   const page = Number(pageRaw) || 1;
 
-  const [openings, list] = await Promise.all([getOpeningStatuses(), getCashEntries(page)]);
+    const [openings, list, book] = await Promise.all([
+    getOpeningStatuses(),
+    getCashEntries(page),
+    getCashbook(dhakaToday()),
+  ]);
 
   return (
     <div>
@@ -54,6 +59,24 @@ export default async function CashPage({ searchParams }: Props) {
             )}
           </div>
         ))}
+      </div>
+            <div className="mt-4 rounded-lg border border-blue-200 bg-blue-50 p-4">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="text-sm font-semibold">এখনকার ব্যালেন্স (আজ পর্যন্ত)</p>
+          <Link href="/admin/cashbook" className="text-sm text-blue-700 hover:underline">
+            ক্যাশবুক দেখুন →
+          </Link>
+        </div>
+        <div className="mt-2 grid gap-2 text-sm sm:grid-cols-2 lg:grid-cols-5">
+          {book.cards.map((c) => (
+            <p key={c.method}>
+              {c.label}: <b>{taka(c.closing)}</b>
+            </p>
+          ))}
+          <p>
+            মোট: <b>{taka(book.totalClosing)}</b>
+          </p>
+        </div>
       </div>
 
       <section className="mt-6 rounded-lg border border-gray-200 bg-white p-5">
@@ -80,37 +103,47 @@ export default async function CashPage({ searchParams }: Props) {
                 </td>
               </tr>
             )}
-            {list.items.map((e) => (
-              <tr key={e.id} className={e.voided ? "bg-gray-50 text-gray-400" : ""}>
-                <td className="px-3 py-2 whitespace-nowrap">{dateText(e.entryDate)}</td>
-                <td className="px-3 py-2">
-                  {e.kindLabel}
-                  <span className="block font-mono text-xs">{e.entryNumber}</span>
-                  {e.note && <span className="block text-xs">{e.note}</span>}
-                  <span className="block text-xs">লিখেছেন: {e.staffName}</span>
-                  {e.voided && (
-                    <span className="block text-xs text-red-600">
-                      বাতিল ({e.voidedBy}): {e.voidReason}
-                    </span>
-                  )}
-                </td>
-                <td className="px-3 py-2">{e.methodLabel}</td>
-                <td
-                  className={`px-3 py-2 text-right font-medium ${
-                    e.voided
-                      ? "line-through"
-                      : isCashIn(e.kind)
-                        ? "text-green-700"
-                        : "text-red-600"
-                  }`}
-                >
-                  {isCashIn(e.kind) ? "+" : "−"} {taka(e.amount)}
-                </td>
-                <td className="px-3 py-2 text-right">
-                  {!e.voided && <CashVoidButton id={e.id} />}
-                </td>
-              </tr>
-            ))}
+            {list.items.map((e) => {
+              const transfer = e.kind === "TRANSFER";
+              return (
+                <tr key={e.id} className={e.voided ? "bg-gray-50 text-gray-400" : ""}>
+                  <td className="px-3 py-2 whitespace-nowrap">{dateText(e.entryDate)}</td>
+                  <td className="px-3 py-2">
+                    {e.kindLabel}
+                    <span className="block font-mono text-xs">{e.entryNumber}</span>
+                    {transfer && e.charge > 0 && (
+                      <span className="block text-xs">চার্জ: {taka(e.charge)} (খরচে গেছে)</span>
+                    )}
+                    {e.note && <span className="block text-xs">{e.note}</span>}
+                    <span className="block text-xs">লিখেছেন: {e.staffName}</span>
+                    {e.voided && (
+                      <span className="block text-xs text-red-600">
+                        বাতিল ({e.voidedBy}): {e.voidReason}
+                      </span>
+                    )}
+                  </td>
+                  <td className="px-3 py-2">
+                    {transfer ? `${e.methodLabel} → ${e.toMethodLabel}` : e.methodLabel}
+                  </td>
+                  <td
+                    className={`px-3 py-2 text-right font-medium ${
+                      e.voided
+                        ? "line-through"
+                        : transfer
+                          ? "text-blue-700"
+                          : isCashIn(e.kind)
+                            ? "text-green-700"
+                            : "text-red-600"
+                    }`}
+                  >
+                    {transfer ? "⇄" : isCashIn(e.kind) ? "+" : "−"} {taka(e.amount)}
+                  </td>
+                  <td className="px-3 py-2 text-right">
+                    {!e.voided && <CashVoidButton id={e.id} />}
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>

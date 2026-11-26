@@ -8,7 +8,10 @@ const MAX_CASH = 1_000_000_000;
 export type CashEntryInput = {
   kind: CashKindKey;
   method: SalePayMethodKey;
+  // শুধু TRANSFER-এ
+  toMethod: SalePayMethodKey | null;
   amount: Prisma.Decimal;
+  charge: Prisma.Decimal;
   entryDate: Date;
   note: string | null;
 };
@@ -16,6 +19,10 @@ export type CashEntryInput = {
 export type ValidateCashResult =
   | { ok: true; data: CashEntryInput }
   | { ok: false; message: string };
+
+function isMethod(v: unknown): v is SalePayMethodKey {
+  return (SALE_PAY_METHODS as readonly string[]).includes(String(v));
+}
 
 export function validateCashEntry(raw: unknown): ValidateCashResult {
   if (!raw || typeof raw !== "object") {
@@ -28,10 +35,10 @@ export function validateCashEntry(raw: unknown): ValidateCashResult {
   }
   const kind = r.kind as CashKindKey;
 
-  if (!(SALE_PAY_METHODS as readonly string[]).includes(String(r.method))) {
+  if (!isMethod(r.method)) {
     return { ok: false, message: "মাধ্যম বাছুন।" };
   }
-  const method = r.method as SalePayMethodKey;
+  const method = r.method;
 
   const amountText = String(r.amount ?? "").trim();
   if (!/^\d+(\.\d{1,2})?$/.test(amountText)) {
@@ -40,6 +47,29 @@ export function validateCashEntry(raw: unknown): ValidateCashResult {
   const amount = new Prisma.Decimal(amountText);
   if (amount.lte(0) || amount.gt(MAX_CASH)) {
     return { ok: false, message: "টাকা ০-এর বেশি ও ১০০ কোটির মধ্যে হতে হবে।" };
+  }
+
+  let toMethod: SalePayMethodKey | null = null;
+  let charge = new Prisma.Decimal(0);
+  if (kind === "TRANSFER") {
+    if (!isMethod(r.toMethod)) {
+      return { ok: false, message: "কোন মাধ্যমে যাচ্ছে তা বাছুন।" };
+    }
+    toMethod = r.toMethod;
+    if (toMethod === method) {
+      return { ok: false, message: "যেখান থেকে আর যেখানে, দুটো আলাদা হতে হবে।" };
+    }
+
+    const chargeText = String(r.charge ?? "").trim();
+    if (chargeText !== "") {
+      if (!/^\d+(\.\d{1,2})?$/.test(chargeText)) {
+        return { ok: false, message: "চার্জের পরিমাণ ঠিক নেই (সর্বোচ্চ ২ দশমিক)।" };
+      }
+      charge = new Prisma.Decimal(chargeText);
+      if (charge.gt(amount)) {
+        return { ok: false, message: "চার্জ স্থানান্তরের টাকার চেয়ে বেশি হতে পারে না।" };
+      }
+    }
   }
 
   const dateText = String(r.date ?? "").trim();
@@ -61,6 +91,14 @@ export function validateCashEntry(raw: unknown): ValidateCashResult {
 
   return {
     ok: true,
-    data: { kind, method, amount, entryDate, note: noteText === "" ? null : noteText },
+    data: {
+      kind,
+      method,
+      toMethod,
+      amount,
+      charge,
+      entryDate,
+      note: noteText === "" ? null : noteText,
+    },
   };
 }

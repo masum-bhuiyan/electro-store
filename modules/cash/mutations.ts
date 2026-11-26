@@ -6,10 +6,14 @@ export type CashResult = { ok: true } | { ok: false; message: string };
 
 class CashError extends Error {}
 
+export const CHARGE_CATEGORY_NAME = "ব্যাংক ও মোবাইল ব্যাংকিং চার্জ";
+
 export async function createCashEntry(
   input: CashEntryInput,
   staffName: string
 ): Promise<CashResult> {
+  const entryNumber = makePaymentNumber("CSH");
+
   try {
     await prisma.$transaction(
       async (tx) => {
@@ -27,12 +31,39 @@ export async function createCashEntry(
           }
         }
 
+        // স্থানান্তরে চার্জ থাকলে একটা খরচ নিজে তৈরি হয় (যেখান থেকে টাকা গেল সেই মাধ্যমে)
+        let chargeExpenseId: string | null = null;
+        if (input.kind === "TRANSFER" && input.charge.gt(0)) {
+          const cat = await tx.expenseCategory.upsert({
+            where: { name: CHARGE_CATEGORY_NAME },
+            update: {},
+            create: { name: CHARGE_CATEGORY_NAME, sortOrder: 99 },
+            select: { id: true },
+          });
+          const exp = await tx.expense.create({
+            data: {
+              expenseNumber: makePaymentNumber("EXP"),
+              categoryId: cat.id,
+              amount: input.charge,
+              method: input.method,
+              expenseDate: input.entryDate,
+              note: `স্থানান্তরের চার্জ (${entryNumber})`,
+              staffName,
+            },
+            select: { id: true },
+          });
+          chargeExpenseId = exp.id;
+        }
+
         await tx.cashEntry.create({
           data: {
-            entryNumber: makePaymentNumber("CSH"),
+            entryNumber,
             kind: input.kind,
             method: input.method,
+            toMethod: input.kind === "TRANSFER" ? input.toMethod : null,
             amount: input.amount,
+            charge: input.kind === "TRANSFER" ? input.charge : 0,
+            chargeExpenseId,
             entryDate: input.entryDate,
             note: input.note,
             staffName,
@@ -49,22 +80,42 @@ export async function createCashEntry(
   }
 }
 
-// মোছা যায় না, শুধু বাতিল
+// মোছা যায় না, শুধু বাতিল। স্থানান্তর বাতিল হলে তার চার্জের খরচও বাতিল হয়
 export async function voidCashEntry(
   id: string,
   reason: string,
   staffName: string
 ): Promise<CashResult> {
   try {
-    const res = await prisma.cashEntry.updateMany({
-      where: { id, voidedAt: null },
-      data: { voidedAt: new Date(), voidedBy: staffName, voidReason: reason },
-    });
-    if (res.count !== 1) {
-      return { ok: false, message: "এন্ট্রিটা পাওয়া যায়নি বা আগেই বাতিল হয়েছে।" };
-    }
+    await prisma.$transaction(
+      async (tx) => {
+        const entry = await tx.cashEntry.findUnique({
+          where: { id },
+          select: { chargeExpenseId: true, entryNumber: true },
+        });
+        const res = await tx.cashEntry.updateMany({
+          where: { id, voidedAt: null },
+          data: { voidedAt: new Date(), voidedBy: staffName, voidReason: reason },
+        });
+        if (!entry || res.count !== 1) {
+          throw new CashError("এন্ট্রিটা পাওয়া যায়নি বা আগেই বাতিল হয়েছে।");
+        }
+        if (entry.chargeExpenseId) {
+          await tx.expense.updateMany({
+            where: { id: entry.chargeExpenseId, voidedAt: null },
+            data: {
+              voidedAt: new Date(),
+              voidedBy: staffName,
+              voidReason: `স্থানান্তর ${entry.entryNumber} বাতিল: ${reason}`.slice(0, 200),
+            },
+          });
+        }
+      },
+      { maxWait: 5000, timeout: 20000 }
+    );
     return { ok: true };
   } catch (e) {
+    if (e instanceof CashError) return { ok: false, message: e.message };
     console.error("voidCashEntry failed:", e);
     return { ok: false, message: "বাতিল করা যায়নি। আবার চেষ্টা করুন।" };
   }

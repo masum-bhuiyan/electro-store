@@ -50,12 +50,12 @@ export default async function PanelLayout({
                 ক্যাটাগরি ও ব্র্যান্ড
               </Link>
             )}
-                        {can("customers.view") && (
+            {can("customers.view") && (
               <Link href="/admin/customers" className="hover:text-blue-600">
                 ক্রেতা
               </Link>
             )}
-                        {can("purchase.manage") && (
+            {can("purchase.manage") && (
               <Link href="/admin/purchases" className="hover:text-blue-600">
                 ক্রয়
               </Link>
@@ -65,7 +65,7 @@ export default async function PanelLayout({
                 সাপ্লায়ার
               </Link>
             )}
-                        {can("money.manage") && (
+            {can("money.manage") && (
               <Link href="/admin/expenses" className="hover:text-blue-600">
                 খরচ
               </Link>
@@ -73,6 +73,11 @@ export default async function PanelLayout({
             {can("money.manage") && (
               <Link href="/admin/cash" className="hover:text-blue-600">
                 ক্যাশ ও ব্যাংক
+              </Link>
+            )}
+                        {can("money.manage") && (
+              <Link href="/admin/cashbook" className="hover:text-blue-600">
+                ক্যাশবুক
               </Link>
             )}
             {can("staff.manage") && (

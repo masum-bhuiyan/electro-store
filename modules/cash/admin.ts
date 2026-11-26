@@ -38,6 +38,9 @@ export type CashEntryRow = {
   kind: CashKindKey;
   kindLabel: string;
   methodLabel: string;
+  // শুধু TRANSFER-এ
+  toMethodLabel: string | null;
+  charge: number;
   amount: number;
   entryDate: string;
   note: string | null;
@@ -72,6 +75,10 @@ export async function getCashEntries(pageParam?: number): Promise<CashEntryList>
       kind: e.kind,
       kindLabel: CASH_KIND_LABELS[e.kind],
       methodLabel: SALE_PAY_LABELS[e.method as SalePayMethodKey] ?? e.method,
+      toMethodLabel: e.toMethod
+        ? (SALE_PAY_LABELS[e.toMethod as SalePayMethodKey] ?? e.toMethod)
+        : null,
+      charge: Number(e.charge),
       amount: Number(e.amount),
       entryDate: e.entryDate.toISOString(),
       note: e.note,
