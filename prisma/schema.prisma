@@ -580,3 +580,22 @@ model CashEntry {
 
   @@index([method, entryDate])
 }
+
+// দিনের শেষে হাতে গোনা টাকা সিস্টেমের হিসাবের সাথে মেলানো। বদলানো/মোছা যায় না, নতুন সমাপ্তি দিলে আগেরটা বাতিল হয়
+model DayClosing {
+  id            String    @id @default(cuid())
+  closingNumber String    @unique
+  // ঢাকার তারিখ
+  closingDate   DateTime
+  // প্রতি মাধ্যমের: method, label, started, system, counted, diff, reason
+  lines         Json
+  // সব মাধ্যমের পার্থক্যের যোগফল (গোনা − সিস্টেম)
+  totalDiff     Decimal   @db.Decimal(12, 2)
+  staffName     String
+  voidedAt      DateTime?
+  voidedBy      String?
+  voidReason    String?
+  createdAt     DateTime  @default(now())
+
+  @@index([closingDate])
+}

@@ -80,6 +80,11 @@ export default async function PanelLayout({
                 ক্যাশবুক
               </Link>
             )}
+            {can("money.manage") && (
+              <Link href="/admin/closing" className="hover:text-blue-600">
+                দিনের সমাপ্তি
+              </Link>
+            )}
             {can("staff.manage") && (
               <Link href="/admin/staff" className="hover:text-blue-600">
                 কর্মচারী
