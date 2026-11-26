@@ -218,6 +218,13 @@ model Order {
   originalShippingFee Decimal?      @db.Decimal(12, 2)
   total               Decimal       @db.Decimal(12, 2)
   notes               String?
+  // কুরিয়ারকে মাল দেওয়ার সময় (এই দিনেই বিক্রয় গোনা হবে)
+  shippedAt           DateTime?
+  // কুরিয়ার থেকে টাকা হাতে পাওয়ার সময়, পরিমাণ, মাধ্যম ও কে লিখেছে
+  paidAt              DateTime?
+  paidAmount          Decimal?      @db.Decimal(12, 2)
+  paidMethod          SalePayMethod?
+  paidBy              String?
   items               OrderItem[]
   edits               OrderEdit[]
   createdAt           DateTime      @default(now())
@@ -227,6 +234,7 @@ model Order {
   @@index([customerId])
   @@index([status])
   @@index([createdAt])
+  @@index([paidAt])
 }
 
 model OrderItem {

@@ -19,7 +19,6 @@ export async function changeOrderStatus(
           select: {
             status: true,
             orderNumber: true,
-            paymentMethod: true,
             items: { select: { variantId: true, quantity: true } },
           },
         });
@@ -34,9 +33,10 @@ export async function changeOrderStatus(
         }
 
         const data: Prisma.OrderUpdateManyMutationInput = { status: next };
-        // ক্যাশ অন ডেলিভারিতে পণ্য পৌঁছালে টাকা হাতে এসেছে ধরি
-        if (next === "DELIVERED" && order.paymentMethod === "COD") {
-          data.paymentStatus = "PAID";
+        // কুরিয়ারকে মাল দেওয়ার সময়টা রাখি: এই দিনেই বিক্রয় গোনা হবে।
+        // DELIVERED হলেও আর নিজে থেকে PAID হয় না: টাকা হাতে এলে "টাকা পেয়েছি" দিয়ে PAID হবে
+        if (next === "SHIPPED") {
+          data.shippedAt = new Date();
         }
 
         // শর্ত: অবস্থা এখনো আগেরটাই। অন্য কেউ এর মধ্যে বদলে দিলে কিছুই বদলায় না
@@ -60,7 +60,7 @@ export async function changeOrderStatus(
             );
           }
 
-          // দিন ৭-এর মতো আইডি অনুযায়ী সাজিয়ে কাজ করি, যাতে দুটো কাজ একে অপরকে আটকে না দেয়
+          // আইডি অনুযায়ী সাজিয়ে কাজ করি, যাতে দুটো কাজ একে অপরকে আটকে না দেয়
           const lines = [...qtyByVariant.entries()].sort((a, b) =>
             a[0] < b[0] ? -1 : 1
           );

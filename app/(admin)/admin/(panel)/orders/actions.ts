@@ -8,6 +8,7 @@ import {
   type StatusChangeResult,
 } from "@/modules/orders/admin-mutations";
 import { validateOrderEdit } from "@/modules/orders/edit-validation";
+import { markOrderPaid, type MarkPaidResult } from "@/modules/orders/mark-paid";
 
 export async function changeOrderStatusAction(
   id: unknown,
@@ -38,4 +39,13 @@ export async function editOrderAction(payload: unknown): Promise<EditResult> {
     };
   }
   return editOrder(checked.data, staff.name);
+}
+
+// কুরিয়ার থেকে টাকা হাতে পাওয়ার পর "টাকা পেয়েছি"
+export async function markOrderPaidAction(
+  id: unknown,
+  payload: unknown
+): Promise<MarkPaidResult> {
+  const staff = await requirePermission("money.manage");
+  return markOrderPaid(id, payload, staff.name);
 }

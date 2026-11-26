@@ -2,12 +2,15 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import CreateCustomerFromOrder from "@/components/admin/createCustomerFromOrder";
 import OrderEditForm from "@/components/admin/orderEditForm";
+import OrderPaidForm from "@/components/admin/orderPaidForm";
 import OrderStatusBadge from "@/components/admin/orderStatusBadge";
 import OrderStatusControl from "@/components/admin/orderStatusControl";
 import { formatDateTime, formatPrice } from "@/lib/format";
 import { paymentMethodLabel, paymentStatusLabel } from "@/lib/order-status";
 import { requirePermission } from "@/modules/auth/session";
 import { getAdminOrder } from "@/modules/orders/admin";
+import { dhakaToday } from "@/modules/expenses/validation";
+import { SALE_PAY_LABELS } from "@/modules/sales/validation";
 
 export const dynamic = "force-dynamic";
 
@@ -21,6 +24,7 @@ export default async function AdminOrderDetailPage({ params }: Props) {
   const canEditPrice = staff.permissions.includes("orders.editPrice");
   const canManageCustomers = staff.permissions.includes("customers.manage");
   const canViewCustomers = staff.permissions.includes("customers.view");
+  const canCollect = staff.permissions.includes("money.manage");
 
   const { id } = await params;
   if (!id || id.length > 50) notFound();
@@ -30,6 +34,11 @@ export default async function AdminOrderDetailPage({ params }: Props) {
 
   const warn = order.samePhone.cancelled >= 2;
   const editable = order.status === "PENDING" || order.status === "CONFIRMED";
+    const today = dhakaToday();
+  const awaitingCourierMoney =
+    order.paymentMethod === "COD" &&
+    order.status === "DELIVERED" &&
+    order.paymentStatus !== "PAID";
 
   return (
     <div>
@@ -205,12 +214,59 @@ export default async function AdminOrderDetailPage({ params }: Props) {
             )}
           </section>
 
-          <section className="rounded-lg border border-gray-200 bg-white p-5 text-sm">
+                    <section className="rounded-lg border border-gray-200 bg-white p-5 text-sm">
             <h2 className="mb-3 text-lg font-bold">পেমেন্ট</h2>
             <p>{paymentMethodLabel(order.paymentMethod)}</p>
             <p className="mt-1 text-gray-600">
               {paymentStatusLabel(order.paymentStatus)}
             </p>
+
+            {order.shippedAt && (
+              <p className="mt-2 text-xs text-gray-500">
+                কুরিয়ারকে দেওয়া (বিক্রয় গোনার দিন):{" "}
+                {formatDateTime(order.shippedAt)}
+              </p>
+            )}
+
+            {order.paidAt && order.paidAmount !== null && order.paidMethod && (
+              <div className="mt-3 rounded-md bg-green-50 p-3 text-green-800">
+                <p className="font-medium">
+                  টাকা পেয়েছেন: {formatPrice(order.paidAmount)} (
+                  {SALE_PAY_LABELS[order.paidMethod]})
+                </p>
+                <p className="mt-1 text-xs">
+                  {formatDateTime(order.paidAt)}
+                  {order.paidBy ? ` · ${order.paidBy}` : ""}
+                </p>
+              </div>
+            )}
+
+            {order.paymentMethod === "COD" &&
+              order.paymentStatus === "PAID" &&
+              !order.paidAt && (
+                <p className="mt-3 text-xs text-gray-500">
+                  পুরনো অর্ডার: টাকা পাওয়ার তারিখ রাখা নেই।
+                </p>
+              )}
+
+            {awaitingCourierMoney && (
+              <div className="mt-3 border-t border-gray-200 pt-3">
+                <p className="mb-2 font-medium text-orange-700">
+                  কুরিয়ারের কাছে পাওনা
+                </p>
+                {canCollect ? (
+                  <OrderPaidForm
+                    orderId={order.id}
+                    total={order.total}
+                    today={today}
+                  />
+                ) : (
+                  <p className="text-gray-600">
+                    টাকা পাওয়া লেখার অনুমতি আপনার নেই।
+                  </p>
+                )}
+              </div>
+            )}
           </section>
 
           <section

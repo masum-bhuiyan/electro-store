@@ -69,7 +69,7 @@ export async function getCashbook(date: string): Promise<Cashbook> {
   const zero = new Prisma.Decimal(0);
   const end = new Date(`${addDays(date, 1)}T00:00:00+06:00`);
 
-  const [sales, custPays, suppPays, purchases, purReturns, saleReturns, expenses, entries] =
+    const [sales, custPays, suppPays, purchases, purReturns, saleReturns, expenses, entries, codPaid] =
     await Promise.all([
       prisma.sale.findMany({
         where: { status: "CONFIRMED", paid: { gt: 0 }, createdAt: { lt: end } },
@@ -168,6 +168,22 @@ export async function getCashbook(date: string): Promise<Cashbook> {
           note: true,
           staffName: true,
           createdAt: true,
+        },
+      }),
+            prisma.order.findMany({
+        where: {
+          paymentStatus: "PAID",
+          paidAt: { not: null, lt: end },
+          paidAmount: { not: null },
+        },
+        select: {
+          id: true,
+          orderNumber: true,
+          customerName: true,
+          paidAmount: true,
+          paidMethod: true,
+          paidBy: true,
+          paidAt: true,
         },
       }),
     ]);
@@ -298,6 +314,22 @@ export async function getCashbook(date: string): Promise<Cashbook> {
         detail: c.note ? `${c.entryNumber} · ${c.note}` : c.entryNumber,
       });
     }
+  }
+    // অনলাইন COD: কুরিয়ার থেকে টাকা হাতে পাওয়ার দিনে জমা (বিক্রয়ের দিনে নয়)
+  for (const o of codPaid) {
+    if (!o.paidAt || !o.paidAmount || !o.paidMethod) continue;
+    evs.push({
+      key: `oc-${o.id}`,
+      day: dayKey(o.paidAt),
+      sortAt: o.paidAt.getTime(),
+      method: o.paidMethod,
+      delta: o.paidAmount,
+      text: `অনলাইন অর্ডারের টাকা ${o.orderNumber}`,
+      detail: `${o.customerName} · কুরিয়ার থেকে আদায়`,
+      href: `/admin/orders/${o.id}`,
+      staff: o.paidBy,
+      assumedCash: false,
+    });
   }
 
   // কোন মাধ্যমে কোন দিন থেকে গোনা শুরু

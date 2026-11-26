@@ -7,6 +7,7 @@ import type {
 } from "@/lib/order-status";
 import { prisma } from "@/lib/prisma";
 import type { Zone } from "@/lib/shipping";
+import type { SalePayMethodKey } from "@/modules/sales/validation";
 import { normalizePhone } from "./validation";
 
 export const ORDERS_PAGE_SIZE = 20;
@@ -48,6 +49,11 @@ export type AdminOrderDetail = {
   total: number;
   createdAt: string;
   updatedAt: string;
+  shippedAt: string | null;
+  paidAt: string | null;
+  paidAmount: number | null;
+  paidMethod: SalePayMethodKey | null;
+  paidBy: string | null;
   items: {
     id: string;
     name: string;
@@ -186,6 +192,11 @@ export async function getAdminOrder(
     total: Number(order.total),
     createdAt: order.createdAt.toISOString(),
     updatedAt: order.updatedAt.toISOString(),
+        shippedAt: order.shippedAt ? order.shippedAt.toISOString() : null,
+    paidAt: order.paidAt ? order.paidAt.toISOString() : null,
+    paidAmount: order.paidAmount === null ? null : Number(order.paidAmount),
+    paidMethod: order.paidMethod,
+    paidBy: order.paidBy,
     items: order.items.map((i) => ({
       id: i.id,
       name: i.name,
