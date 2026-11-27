@@ -14,6 +14,9 @@
   --color-brand-orange: #fc7e07;
   --color-brand-teal: #112c2d;
   --color-brand-mist: #f0f8fd;
+  --color-admin-navy: #0f3557;
+  --color-admin-bg: #eef2f7;
+  --color-brand-yellow: #fdb515;
 
   --font-sans: var(--font-inter), var(--font-bangla), sans-serif;
   --font-heading: var(--font-poppins), var(--font-bangla), sans-serif;
@@ -29,4 +32,54 @@ button:focus-visible,
 input:focus-visible {
   outline: 3px solid var(--color-brand-orange);
   outline-offset: 2px;
+}
+/* অ্যাডমিন প্যানেলের সব পেজের সাধারণ চেহারা */
+.admin-main h1 {
+  color: #0f3557;
+}
+
+.admin-main thead {
+  background: #0f3557;
+}
+.admin-main thead th {
+  color: #ffffff;
+  font-weight: 500;
+}
+.admin-main tbody tr:nth-child(even) {
+  background: #f6f9fc;
+}
+.admin-main tbody tr:hover {
+  background: #eaf4fb;
+}
+.admin-main td {
+  font-size: 15px;
+}
+
+.admin-main .border-gray-200.bg-white {
+  border-color: #e3e9f0;
+  box-shadow: 0 1px 3px rgba(15, 53, 87, 0.08);
+}
+
+.admin-main .bg-blue-600 {
+  background-color: #038cd4;
+}
+.admin-main .hover\:bg-blue-700:hover {
+  background-color: #0275b3;
+}
+.admin-main .text-blue-600 {
+  color: #038cd4;
+}
+.admin-main .hover\:text-blue-600:hover {
+  color: #038cd4;
+}
+.admin-main .border-blue-600 {
+  border-color: #038cd4;
+}
+
+.admin-main input:focus,
+.admin-main select:focus,
+.admin-main textarea:focus {
+  border-color: #038cd4;
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(3, 140, 212, 0.15);
 }

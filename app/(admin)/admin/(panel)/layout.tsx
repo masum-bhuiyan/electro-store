@@ -1,5 +1,5 @@
-import Link from "next/link";
 import { logoutAction } from "@/app/(admin)/admin/actions";
+import AdminShell, { type NavGroup } from "@/components/admin/adminShell";
 import { ROLE_LABELS } from "@/lib/permissions";
 import { requireStaff } from "@/modules/auth/session";
 
@@ -12,126 +12,103 @@ export default async function PanelLayout({
   const can = (p: (typeof staff.permissions)[number]) =>
     staff.permissions.includes(p);
 
+  const all: (NavGroup & { show: boolean[] })[] = [
+    {
+      title: "",
+      items: [{ label: "ড্যাশবোর্ড", href: "/admin" }],
+      show: [true],
+    },
+    {
+      title: "বিক্রয়",
+      items: [
+        { label: "নতুন বিক্রয় (POS)", href: "/admin/pos" },
+        { label: "বিক্রয়ের তালিকা", href: "/admin/sales" },
+        { label: "অনলাইন অর্ডার", href: "/admin/orders" },
+      ],
+      show: [can("pos.sell"), can("pos.sell"), can("orders.view")],
+    },
+    {
+      title: "পণ্য",
+      items: [
+        { label: "প্রোডাক্ট", href: "/admin/products" },
+        { label: "স্টক", href: "/admin/stock" },
+        { label: "ক্যাটাগরি ও ব্র্যান্ড", href: "/admin/catalog" },
+      ],
+      show: [can("products.view"), can("stock.view"), can("catalog.manage")],
+    },
+    {
+      title: "ক্রয়",
+      items: [
+        { label: "ক্রয়", href: "/admin/purchases" },
+        { label: "সাপ্লায়ার", href: "/admin/suppliers" },
+      ],
+      show: [can("purchase.manage"), can("purchase.manage")],
+    },
+    {
+      title: "ক্রেতা",
+      items: [{ label: "ক্রেতা", href: "/admin/customers" }],
+      show: [can("customers.view")],
+    },
+    {
+      title: "টাকা",
+      items: [
+        { label: "খরচ", href: "/admin/expenses" },
+        { label: "ক্যাশ ও ব্যাংক", href: "/admin/cash" },
+        { label: "ক্যাশবুক", href: "/admin/cashbook" },
+        { label: "দিনের সমাপ্তি", href: "/admin/closing" },
+      ],
+      show: [
+        can("money.manage"),
+        can("money.manage"),
+        can("money.manage"),
+        can("money.manage"),
+      ],
+    },
+    {
+      title: "রিপোর্ট",
+      items: [
+        { label: "বিক্রয় রিপোর্ট", href: "/admin/reports/sales" },
+        { label: "লাভ-ক্ষতি", href: "/admin/reports/profit" },
+        { label: "কেনা দামের নিচে বিক্রি", href: "/admin/reports/below-cost" },
+        { label: "টাকা বেরোনো", href: "/admin/reports/money-out" },
+      ],
+      show: [
+        can("reports.view"),
+        can("ownerFinance.view"),
+        can("ownerFinance.view"),
+        can("money.manage"),
+      ],
+    },
+    {
+      title: "সেটিংস",
+      items: [{ label: "কর্মচারী", href: "/admin/staff" }],
+      show: [can("staff.manage")],
+    },
+  ];
+
+  const groups: NavGroup[] = all
+    .map((g) => ({
+      title: g.title,
+      items: g.items.filter((_, i) => g.show[i]),
+    }))
+    .filter((g) => g.items.length > 0);
+
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="border-b border-gray-200 bg-white">
-        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-x-4 gap-y-2 px-4 py-3">
-          <nav className="flex flex-wrap items-center gap-x-5 gap-y-1 text-sm font-medium">
-            <Link href="/admin" className="font-bold">
-              অ্যাডমিন
-            </Link>
-                        {can("pos.sell") && (
-              <Link href="/admin/pos" className="hover:text-blue-600">
-                বিক্রয়
-              </Link>
-            )}
-                        {can("pos.sell") && (
-              <Link href="/admin/sales" className="hover:text-blue-600">
-                বিক্রয়ের তালিকা
-              </Link>
-            )}
-            {can("orders.view") && (
-              <Link href="/admin/orders" className="hover:text-blue-600">
-                অর্ডার
-              </Link>
-            )}
-            {can("products.view") && (
-              <Link href="/admin/products" className="hover:text-blue-600">
-                প্রোডাক্ট
-              </Link>
-            )}
-            {can("stock.view") && (
-              <Link href="/admin/stock" className="hover:text-blue-600">
-                স্টক
-              </Link>
-            )}
-            {can("catalog.manage") && (
-              <Link href="/admin/catalog" className="hover:text-blue-600">
-                ক্যাটাগরি ও ব্র্যান্ড
-              </Link>
-            )}
-            {can("customers.view") && (
-              <Link href="/admin/customers" className="hover:text-blue-600">
-                ক্রেতা
-              </Link>
-            )}
-            {can("purchase.manage") && (
-              <Link href="/admin/purchases" className="hover:text-blue-600">
-                ক্রয়
-              </Link>
-            )}
-                        {can("purchase.manage") && (
-              <Link href="/admin/suppliers" className="hover:text-blue-600">
-                সাপ্লায়ার
-              </Link>
-            )}
-            {can("money.manage") && (
-              <Link href="/admin/expenses" className="hover:text-blue-600">
-                খরচ
-              </Link>
-            )}
-            {can("money.manage") && (
-              <Link href="/admin/cash" className="hover:text-blue-600">
-                ক্যাশ ও ব্যাংক
-              </Link>
-            )}
-                        {can("money.manage") && (
-              <Link href="/admin/cashbook" className="hover:text-blue-600">
-                ক্যাশবুক
-              </Link>
-            )}
-            {can("money.manage") && (
-              <Link href="/admin/closing" className="hover:text-blue-600">
-                দিনের সমাপ্তি
-              </Link>
-            )}
-                        {can("reports.view") && (
-              <Link href="/admin/reports/sales" className="hover:text-blue-600">
-                রিপোর্ট
-              </Link>
-            )}
-                        {can("ownerFinance.view") && (
-              <Link href="/admin/reports/profit" className="hover:text-blue-600">
-                লাভ-ক্ষতি
-              </Link>
-            )}
-                        {can("ownerFinance.view") && (
-              <Link href="/admin/reports/below-cost" className="hover:text-blue-600">
-                কেনা দামের নিচে
-              </Link>
-            )}
-            {can("money.manage") && (
-              <Link href="/admin/reports/money-out" className="hover:text-blue-600">
-                টাকা বেরোনো
-              </Link>
-            )}
-            {can("staff.manage") && (
-              <Link href="/admin/staff" className="hover:text-blue-600">
-                কর্মচারী
-              </Link>
-            )}
-            <Link href="/" className="text-gray-500 hover:text-blue-600">
-              সাইট দেখুন
-            </Link>
-          </nav>
-
-          <div className="flex items-center gap-3 text-sm">
-            <span className="text-gray-600">
-              {staff.name} ({ROLE_LABELS[staff.role]})
-            </span>
-            <form action={logoutAction}>
-              <button
-                type="submit"
-                className="rounded-md border border-gray-300 px-3 py-1 hover:bg-gray-50"
-              >
-                লগআউট
-              </button>
-            </form>
-          </div>
-        </div>
-      </header>
-
-      <main className="mx-auto max-w-6xl px-4 py-8">{children}</main>
-    </div>
+    <AdminShell
+      groups={groups}
+      userLabel={`${staff.name} (${ROLE_LABELS[staff.role]})`}
+      logoutSlot={
+        <form action={logoutAction}>
+          <button
+            type="submit"
+            className="rounded-md border border-gray-300 px-3 py-1.5 hover:bg-gray-50"
+          >
+            লগআউট
+          </button>
+        </form>
+      }
+    >
+      {children}
+    </AdminShell>
   );
 }
