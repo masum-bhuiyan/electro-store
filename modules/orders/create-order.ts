@@ -122,6 +122,7 @@ export async function createOrder(params: {
               variantId: v.id,
               name: `${v.product.name} (${variantLabel(v)})`,
               unitPrice: v.price,
+              unitCost: v.costPrice,
               quantity: item.quantity,
             };
           })
@@ -166,6 +167,7 @@ export async function createOrder(params: {
                 name: l.name,
                 unitPrice: l.unitPrice,
                 listPrice: l.unitPrice,
+                unitCost: l.unitCost,
                 quantity: l.quantity,
               })),
             },

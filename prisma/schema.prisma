@@ -225,6 +225,8 @@ model Order {
   paidAmount          Decimal?      @db.Decimal(12, 2)
   paidMethod          SalePayMethod?
   paidBy              String?
+  // কুরিয়ার ক্রেতার চার্জের চেয়ে যত বেশি কেটেছে (এই টাকা নিজে খরচে যায়)
+  courierExtra        Decimal?      @db.Decimal(12, 2)
   items               OrderItem[]
   edits               OrderEdit[]
   createdAt           DateTime      @default(now())
@@ -247,6 +249,8 @@ model OrderItem {
   unitPrice Decimal        @db.Decimal(12, 2)
   // অর্ডারের সময়ের আসল দাম (ছাড়ের শতাংশ বের করতে), পুরোনো অর্ডারে খালি
   listPrice Decimal?       @db.Decimal(12, 2)
+  // অর্ডারের সময়ের গড় কেনা দাম (লাভ বের করতে)। দাম না থাকলে বা পুরোনো অর্ডারে খালি
+  unitCost  Decimal?       @db.Decimal(12, 2)
   quantity  Int
 
   @@index([orderId])

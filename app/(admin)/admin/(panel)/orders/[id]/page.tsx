@@ -238,6 +238,12 @@ export default async function AdminOrderDetailPage({ params }: Props) {
                   {formatDateTime(order.paidAt)}
                   {order.paidBy ? ` · ${order.paidBy}` : ""}
                 </p>
+                                {order.courierExtra !== null && order.courierExtra > 0 && (
+                  <p className="mt-1 text-xs">
+                    কুরিয়ারের বাড়তি চার্জ {formatPrice(order.courierExtra)}{" "}
+                    খরচে লেখা হয়েছে।
+                  </p>
+                )}
               </div>
             )}
 
@@ -255,9 +261,10 @@ export default async function AdminOrderDetailPage({ params }: Props) {
                   কুরিয়ারের কাছে পাওনা
                 </p>
                 {canCollect ? (
-                  <OrderPaidForm
+                 <OrderPaidForm
                     orderId={order.id}
-                    total={order.total}
+                    subtotal={order.subtotal}
+                    shippingFee={order.shippingFee}
                     today={today}
                   />
                 ) : (

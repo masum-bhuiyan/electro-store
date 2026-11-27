@@ -1,12 +1,17 @@
+import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 import { dayKey } from "@/modules/cash/book";
 import { dhakaToday } from "@/modules/expenses/validation";
+import { makePaymentNumber } from "@/modules/payments/customer-payment";
 import { SALE_PAY_METHODS } from "@/modules/sales/validation";
 
 export type MarkPaidResult = { ok: true } | { ok: false; message: string };
 
 // transaction-এর ভেতরে throw করলে সব আগের অবস্থায় ফিরে যায়
 class PaidError extends Error {}
+
+const COURIER_CATEGORY = "কুরিয়ার ও পরিবহন";
+const MAX_EXTRA = 1_000_000;
 
 export async function markOrderPaid(
   id: unknown,
@@ -16,7 +21,11 @@ export async function markOrderPaid(
   if (typeof id !== "string" || id.length === 0 || id.length > 50) {
     return { ok: false, message: "অনুরোধে সমস্যা হয়েছে। পেজ রিফ্রেশ করুন।" };
   }
-  const input = (raw ?? {}) as { date?: unknown; method?: unknown };
+  const input = (raw ?? {}) as {
+    date?: unknown;
+    method?: unknown;
+    extra?: unknown;
+  };
 
   // মাধ্যম যাচাই
   const method =
@@ -42,6 +51,17 @@ export async function markOrderPaid(
   // আজকের তারিখ হলে আসল সময় রাখি (ক্যাশবুকে ক্রম ঠিক থাকে)
   const paidAt = date === today ? new Date() : dayStart;
 
+  // বাড়তি চার্জ যাচাই (খালি = ০)
+  let extraNum = 0;
+  if (input.extra !== undefined && input.extra !== null && input.extra !== "") {
+    extraNum = Number(input.extra);
+    if (!Number.isFinite(extraNum) || extraNum < 0 || extraNum > MAX_EXTRA) {
+      return { ok: false, message: "বাড়তি চার্জের অঙ্ক ঠিকমতো দিন।" };
+    }
+    extraNum = Math.round(extraNum * 100) / 100;
+  }
+  const extra = new Prisma.Decimal(extraNum.toFixed(2));
+
   try {
     await prisma.$transaction(
       async (tx) => {
@@ -52,9 +72,10 @@ export async function markOrderPaid(
           where: { id },
           select: {
             status: true,
+            orderNumber: true,
             paymentMethod: true,
             paymentStatus: true,
-            total: true,
+            subtotal: true,
             createdAt: true,
           },
         });
@@ -73,17 +94,43 @@ export async function markOrderPaid(
         if (date < dayKey(order.createdAt)) {
           throw new PaidError("অর্ডারের তারিখের আগের তারিখ দেওয়া যাবে না।");
         }
+        if (extra.gt(order.subtotal)) {
+          throw new PaidError("বাড়তি চার্জ পণ্যের দামের চেয়ে বেশি হতে পারে না।");
+        }
 
+        // পাওনা = শুধু পণ্যের দাম। ডেলিভারি চার্জ কুরিয়ারের
         await tx.order.update({
           where: { id },
           data: {
             paymentStatus: "PAID",
             paidAt,
-            paidAmount: order.total,
+            paidAmount: order.subtotal,
             paidMethod: method as "CASH" | "BKASH" | "NAGAD" | "BANK",
             paidBy: staffName,
+            courierExtra: extra.gt(0) ? extra : null,
           },
         });
+
+        // বাড়তি চার্জ থাকলে নিজে একটা খরচ তৈরি
+        if (extra.gt(0)) {
+          const cat = await tx.expenseCategory.upsert({
+            where: { name: COURIER_CATEGORY },
+            update: {},
+            create: { name: COURIER_CATEGORY, sortOrder: 99 },
+            select: { id: true },
+          });
+          await tx.expense.create({
+            data: {
+              expenseNumber: makePaymentNumber("EXP"),
+              categoryId: cat.id,
+              amount: extra,
+              method: method as "CASH" | "BKASH" | "NAGAD" | "BANK",
+              expenseDate: dayStart,
+              note: `কুরিয়ারের বাড়তি চার্জ — ${order.orderNumber}`,
+              staffName,
+            },
+          });
+        }
       },
       { maxWait: 5000, timeout: 15000 }
     );

@@ -85,6 +85,26 @@ export default async function PanelLayout({
                 দিনের সমাপ্তি
               </Link>
             )}
+                        {can("reports.view") && (
+              <Link href="/admin/reports/sales" className="hover:text-blue-600">
+                রিপোর্ট
+              </Link>
+            )}
+                        {can("ownerFinance.view") && (
+              <Link href="/admin/reports/profit" className="hover:text-blue-600">
+                লাভ-ক্ষতি
+              </Link>
+            )}
+                        {can("ownerFinance.view") && (
+              <Link href="/admin/reports/below-cost" className="hover:text-blue-600">
+                কেনা দামের নিচে
+              </Link>
+            )}
+            {can("money.manage") && (
+              <Link href="/admin/reports/money-out" className="hover:text-blue-600">
+                টাকা বেরোনো
+              </Link>
+            )}
             {can("staff.manage") && (
               <Link href="/admin/staff" className="hover:text-blue-600">
                 কর্মচারী

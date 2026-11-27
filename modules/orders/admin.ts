@@ -54,6 +54,7 @@ export type AdminOrderDetail = {
   paidAmount: number | null;
   paidMethod: SalePayMethodKey | null;
   paidBy: string | null;
+  courierExtra: number | null;
   items: {
     id: string;
     name: string;
@@ -197,6 +198,7 @@ export async function getAdminOrder(
     paidAmount: order.paidAmount === null ? null : Number(order.paidAmount),
     paidMethod: order.paidMethod,
     paidBy: order.paidBy,
+    courierExtra: order.courierExtra === null ? null : Number(order.courierExtra),
     items: order.items.map((i) => ({
       id: i.id,
       name: i.name,
