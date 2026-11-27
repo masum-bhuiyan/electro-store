@@ -16,6 +16,7 @@ function first(value: string | string[] | undefined): string | undefined {
 export default async function AdminStockPage({ searchParams }: Props) {
   const staff = await requirePermission("stock.view");
   const canAdjust = staff.permissions.includes("stock.adjust");
+  const canBuy = staff.permissions.includes("purchase.manage");
 
   const sp = await searchParams;
   const q = first(sp.q)?.trim().slice(0, 50) || undefined;
@@ -73,7 +74,19 @@ export default async function AdminStockPage({ searchParams }: Props) {
         </button>
       </form>
 
-      <p className="mb-3 text-sm text-gray-500">{total}টি ভ্যারিয়ান্ট</p>
+           <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+        <p className="text-sm text-gray-500">{total}টি ভ্যারিয়ান্ট</p>
+        {canBuy && lowOnly && items.length > 0 && (
+          <Link
+            href={`/admin/purchases/new?${items
+              .map((v) => `add=${encodeURIComponent(v.id)}`)
+              .join("&")}`}
+            className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+          >
+            এই পেজের সব ক্রয়ে নিন
+          </Link>
+        )}
+      </div>
 
       {items.length === 0 ? (
         <p className="rounded-lg border border-gray-200 bg-white p-8 text-center text-gray-500">
@@ -122,6 +135,14 @@ export default async function AdminStockPage({ searchParams }: Props) {
                     >
                       {canAdjust ? "বদলান" : "ইতিহাস"}
                     </Link>
+                                        {canBuy && (
+                      <Link
+                        href={`/admin/purchases/new?add=${encodeURIComponent(v.id)}`}
+                        className="ml-3 text-green-700 underline"
+                      >
+                        ক্রয় করুন
+                      </Link>
+                    )}
                   </td>
                 </tr>
               ))}

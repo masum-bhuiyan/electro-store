@@ -2,12 +2,26 @@ import Link from "next/link";
 import PurchaseForm from "@/components/admin/purchaseForm";
 import { requirePermission } from "@/modules/auth/session";
 import { getSupplierOptions } from "@/modules/purchases/admin";
+import { getPurchaseVariantsByIds } from "@/modules/purchases/by-ids";
 
 export const dynamic = "force-dynamic";
 
-export default async function NewPurchasePage() {
+type Props = {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+};
+
+export default async function NewPurchasePage({ searchParams }: Props) {
   const staff = await requirePermission("purchase.manage");
-  const suppliers = await getSupplierOptions();
+  const canViewCost = staff.permissions.includes("costPrice.view");
+
+  const sp = await searchParams;
+  const addRaw = sp.add;
+  const addIds = Array.isArray(addRaw) ? addRaw : addRaw ? [addRaw] : [];
+
+  const [suppliers, initialRows] = await Promise.all([
+    getSupplierOptions(),
+    getPurchaseVariantsByIds(addIds, canViewCost),
+  ]);
 
   return (
     <div>
@@ -29,7 +43,8 @@ export default async function NewPurchasePage() {
         <PurchaseForm
           suppliers={suppliers}
           canSetPrice={staff.permissions.includes("products.edit")}
-          canViewCost={staff.permissions.includes("costPrice.view")}
+          canViewCost={canViewCost}
+          initialRows={initialRows}
         />
       )}
     </div>

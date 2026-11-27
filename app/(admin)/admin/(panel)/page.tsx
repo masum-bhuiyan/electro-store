@@ -1,10 +1,21 @@
 import Link from "next/link";
+import { formatPrice } from "@/lib/format";
 import { getDashboardStats } from "@/modules/admin/stats";
+import { getDraftSummary, getTodayExpenseTotal } from "@/modules/admin/today";
 import { requireStaff } from "@/modules/auth/session";
+import { getCashbook } from "@/modules/cash/book";
+import { dhakaToday } from "@/modules/expenses/validation";
+import { getSalesReport } from "@/modules/reports/sales-report";
 
 export const dynamic = "force-dynamic";
 
-type Card = { label: string; value: number; href: string };
+type Card = {
+  label: string;
+  value: string | number;
+  note?: string;
+  href: string;
+  tone?: "normal" | "warn";
+};
 
 export default async function AdminDashboardPage() {
   // ড্যাশবোর্ড সব কর্মচারীর জন্য খোলা। কোন কার্ড দেখাবে তা পারমিশন ঠিক করে
@@ -12,8 +23,68 @@ export default async function AdminDashboardPage() {
   const can = (p: (typeof staff.permissions)[number]) =>
     staff.permissions.includes(p);
 
-  const stats = await getDashboardStats();
+  const today = dhakaToday();
 
+  // যার যে পারমিশন নেই, তার জন্য সেই কোয়েরি চলেই না
+  const [stats, sales, drafts, cashbook, expenseToday] = await Promise.all([
+    getDashboardStats(),
+    can("reports.view")
+      ? getSalesReport({ from: today, to: today, type: "ALL" })
+      : null,
+    can("pos.sell") ? getDraftSummary() : null,
+    can("money.manage") ? getCashbook(today) : null,
+    can("money.manage") ? getTodayExpenseTotal() : null,
+  ]);
+
+  // আজকের অবস্থা
+  const todayCards: Card[] = [];
+  if (sales) {
+    todayCards.push({
+      label: "আজকের নিট বিক্রয়",
+      value: formatPrice(sales.totals.net),
+      note: `দোকান ${sales.totals.posCount}টি বিল · অনলাইন ${sales.totals.onlineCount}টি`,
+      href: `/admin/reports/sales?from=${today}&to=${today}`,
+    });
+  }
+  if (cashbook) {
+    todayCards.push({
+      label: "এখন মোট ব্যবসার টাকা",
+      value: formatPrice(cashbook.totalClosing),
+      note: "নগদ + bKash + Nagad + ব্যাংক",
+      href: "/admin/cashbook",
+      tone: cashbook.totalClosing < 0 ? "warn" : "normal",
+    });
+  }
+  if (expenseToday !== null) {
+    todayCards.push({
+      label: "আজকের খরচ",
+      value: formatPrice(expenseToday),
+      href: "/admin/expenses",
+    });
+  }
+  if (sales && can("money.manage")) {
+    todayCards.push({
+      label: "কুরিয়ারের কাছে পাওনা",
+      value: formatPrice(sales.courierPending.amount),
+      note: `${sales.courierPending.count}টি অর্ডার`,
+      href: "/admin/orders",
+      tone: sales.courierPending.count > 0 ? "warn" : "normal",
+    });
+  }
+  if (drafts) {
+    todayCards.push({
+      label: "অপেক্ষায় ড্রাফট",
+      value: drafts.count,
+      note:
+        drafts.count > 0
+          ? `সবচেয়ে পুরনোটা ${drafts.oldestDays} দিনের`
+          : undefined,
+      href: "/admin/sales",
+      tone: drafts.count > 0 ? "warn" : "normal",
+    });
+  }
+
+  // সারসংক্ষেপ (আগের কার্ড)
   const cards: Card[] = [];
   if (can("orders.view")) {
     cards.push(
@@ -39,7 +110,7 @@ export default async function AdminDashboardPage() {
       href: "/admin/stock?low=1",
     });
   }
-    if (can("customers.view")) {
+  if (can("customers.view")) {
     cards.push({
       label: "মোট ক্রেতা",
       value: stats.totalCustomers,
@@ -49,27 +120,54 @@ export default async function AdminDashboardPage() {
 
   const cardClass = "rounded-lg border border-gray-200 bg-white p-5";
 
+  function renderCard(c: Card) {
+    return (
+      <Link
+        key={c.label}
+        href={c.href}
+        className={`${
+          c.tone === "warn"
+            ? "rounded-lg border border-orange-300 bg-orange-50 p-5"
+            : cardClass
+        } hover:border-blue-600`}
+      >
+        <p className="text-sm text-gray-500">{c.label}</p>
+        <p className="mt-2 text-2xl font-bold">{c.value}</p>
+        {c.note && <p className="mt-1 text-xs text-gray-500">{c.note}</p>}
+      </Link>
+    );
+  }
+
   return (
     <div>
       <h1 className="mb-6 text-2xl font-bold">ড্যাশবোর্ড</h1>
 
-      {cards.length === 0 ? (
+      {todayCards.length === 0 && cards.length === 0 ? (
         <p className="rounded-lg border border-gray-200 bg-white p-8 text-center text-gray-500">
           আপনার জন্য এখনো কোনো অ্যাক্সেস দেওয়া হয়নি। মালিকের সাথে কথা বলুন।
         </p>
       ) : (
-        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-          {cards.map((c) => (
-            <Link
-              key={c.label}
-              href={c.href}
-              className={`${cardClass} hover:border-blue-600`}
-            >
-              <p className="text-sm text-gray-500">{c.label}</p>
-              <p className="mt-2 text-3xl font-bold">{c.value}</p>
-            </Link>
-          ))}
-        </div>
+        <>
+          {todayCards.length > 0 && (
+            <section className="mb-8">
+              <h2 className="mb-3 text-sm font-bold text-gray-600">
+                আজকের অবস্থা ({today})
+              </h2>
+              <div className="grid grid-cols-2 gap-4 lg:grid-cols-3">
+                {todayCards.map(renderCard)}
+              </div>
+            </section>
+          )}
+
+          {cards.length > 0 && (
+            <section>
+              <h2 className="mb-3 text-sm font-bold text-gray-600">সারসংক্ষেপ</h2>
+              <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+                {cards.map(renderCard)}
+              </div>
+            </section>
+          )}
+        </>
       )}
 
       <div className="mt-8 flex flex-wrap gap-3">

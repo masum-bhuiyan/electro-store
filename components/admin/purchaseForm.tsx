@@ -31,10 +31,12 @@ export default function PurchaseForm({
   suppliers,
   canSetPrice,
   canViewCost,
+  initialRows = [],
 }: {
   suppliers: Supplier[];
   canSetPrice: boolean;
   canViewCost: boolean;
+  initialRows?: PurchaseSearchRow[];
 }) {
   const router = useRouter();
   const submitLock = useRef(false);
@@ -44,7 +46,14 @@ export default function PurchaseForm({
   const [billNo, setBillNo] = useState("");
   const [note, setNote] = useState("");
   const [paid, setPaid] = useState("");
-  const [lines, setLines] = useState<Line[]>([]);
+  const [lines, setLines] = useState<Line[]>(() =>
+    initialRows.map((row) => ({
+      ...row,
+      quantity: "1",
+      unitCost: row.costPrice ? String(row.costPrice) : "",
+      newPrice: "",
+    }))
+  );
 
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<PurchaseSearchRow[]>([]);

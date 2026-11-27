@@ -158,6 +158,14 @@ export default async function ProfitReportPage({ searchParams }: Props) {
         </div>
       </section>
 
+      <p className="mb-4">
+        <a
+          href={`/admin/reports/profit/export?from=${r.from}&to=${r.to}&type=${range.type}`}
+          className="inline-block rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium hover:bg-gray-50"
+        >
+          Excel/CSV ডাউনলোড
+        </a>
+      </p>
       {/* সারাংশ */}
       <div className="mb-6 grid gap-4 sm:grid-cols-3">
         <div className="rounded-lg border border-gray-200 bg-white p-4">
