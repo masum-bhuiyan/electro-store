@@ -17,6 +17,9 @@ export default async function NewPurchasePage({ searchParams }: Props) {
   const sp = await searchParams;
   const addRaw = sp.add;
   const addIds = Array.isArray(addRaw) ? addRaw : addRaw ? [addRaw] : [];
+    const supplierRaw = sp.supplier;
+  const initialSupplierId =
+    typeof supplierRaw === "string" && supplierRaw.length <= 50 ? supplierRaw : "";
 
   const [suppliers, initialRows] = await Promise.all([
     getSupplierOptions(),
@@ -45,6 +48,7 @@ export default async function NewPurchasePage({ searchParams }: Props) {
           canSetPrice={staff.permissions.includes("products.edit")}
           canViewCost={canViewCost}
           initialRows={initialRows}
+          initialSupplierId={initialSupplierId}
         />
       )}
     </div>

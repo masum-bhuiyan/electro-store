@@ -1,4 +1,5 @@
 import Link from "next/link";
+import LiveSearchBox from "@/components/admin/liveSearchBox";
 import { requirePermission } from "@/modules/auth/session";
 import { getAdminPurchases } from "@/modules/purchases/admin";
 
@@ -55,22 +56,7 @@ export default async function PurchasesPage({ searchParams }: Props) {
         </p>
       )}
 
-      <form className="mb-4 flex gap-2">
-        <input
-          type="text"
-          name="q"
-          defaultValue={q}
-          maxLength={50}
-          placeholder="ক্রয় নম্বর, বিল নম্বর বা সাপ্লায়ার"
-          className="w-full max-w-sm rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-600 focus:outline-none"
-        />
-        <button
-          type="submit"
-          className="rounded-md border border-gray-300 px-4 py-2 text-sm hover:bg-gray-50"
-        >
-          খুঁজুন
-        </button>
-      </form>
+          <LiveSearchBox placeholder="ক্রয় নম্বর, বিল নম্বর বা সাপ্লায়ার (লিখলেই খুঁজবে)" />
 
       {list.items.length === 0 ? (
         <p className="rounded-md bg-white p-6 text-sm text-gray-500">

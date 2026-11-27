@@ -102,11 +102,16 @@ export async function getAdminCustomers(params: {
 
   const term = params.q?.trim().slice(0, 50);
   if (term) {
-    where.OR = [
-      { name: { contains: term, mode: "insensitive" } },
-      { contactName: { contains: term, mode: "insensitive" } },
-      { phone: { contains: term.replace(/[\s-]/g, "") } },
-    ];
+    // বাংলা অঙ্ক ইংরেজি করে, +88/88 বাদ দিয়ে ফোনের অংশ মেলাই
+    const english = term.replace(/[০-৯]/g, (d) => String("০১২৩৪৫৬৭৮৯".indexOf(d)));
+    const digits = english.replace(/\D/g, "").replace(/^(?:\+?88)(?=0?1)/, "");
+    const isPhoneLike = /^[\d\s+\-]+$/.test(english);
+    where.OR = isPhoneLike
+      ? [{ phone: { contains: digits } }]
+      : [
+          { name: { contains: english, mode: "insensitive" } },
+          { contactName: { contains: english, mode: "insensitive" } },
+        ];
   }
 
   const total = await prisma.customer.count({ where });

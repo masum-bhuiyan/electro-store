@@ -156,10 +156,14 @@ export default function PosForm({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [custPhone, customer]);
 
-  // নাম লিখলে মিল থাকা ক্রেতার তালিকা
+  // নাম বা মোবাইলের যেকোনো ঘরে লিখলে মিল থাকা ক্রেতার তালিকা (লাইভ)
   useEffect(() => {
-    const term = custName.trim();
-    if (customer || term.length < 2) {
+    const nameTerm = custName.trim();
+    const phoneTerm = custPhone.trim();
+    // মোবাইলে ৩ অঙ্ক, নামে ২ অক্ষর থেকে। পূর্ণ ১১ অঙ্ক হলে আলাদা lookup কাজ করে
+    const usePhone = phoneDigits.length >= 3 && phoneDigits.length < 11;
+    const term = usePhone ? phoneTerm : nameTerm.length >= 2 ? nameTerm : "";
+    if (customer || !term) {
       setNameResults([]);
       return;
     }
@@ -171,9 +175,9 @@ export default function PosForm({
       } catch {
         if (myId === customerCounter.current) setNameResults([]);
       }
-    }, 300);
+    }, 150);
     return () => clearTimeout(timer);
-  }, [custName, customer]);
+  }, [custName, custPhone, phoneDigits, customer]);
 
   // দাম বদলালে সার্ভারকে জিজ্ঞেস: কোনটা কেনা দামের নিচে
   const priceKey = lines.map((l) => `${l.id}:${l.unitPrice}`).join("|");

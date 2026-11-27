@@ -84,11 +84,19 @@ export async function getAdminSales(params: {
 
   const term = params.q?.trim().slice(0, 50);
   if (term) {
-    where.OR = [
-      { saleNumber: { contains: term, mode: "insensitive" } },
-      { customerName: { contains: term, mode: "insensitive" } },
-      { customerPhone: { contains: term.replace(/[\s-]/g, "") } },
-    ];
+    // বাংলা অঙ্ক ইংরেজি করে, +88/88 বাদ দিয়ে ফোনের অংশ মেলাই
+    const english = term.replace(/[০-৯]/g, (d) => String("০১২৩৪৫৬৭৮৯".indexOf(d)));
+    const digits = english.replace(/\D/g, "").replace(/^(?:\+?88)(?=0?1)/, "");
+    const isPhoneLike = /^[\d\s+\-]+$/.test(english);
+    where.OR = isPhoneLike
+      ? [
+          { customerPhone: { contains: digits } },
+          { saleNumber: { contains: english.replace(/\s/g, ""), mode: "insensitive" } },
+        ]
+      : [
+          { saleNumber: { contains: english, mode: "insensitive" } },
+          { customerName: { contains: english, mode: "insensitive" } },
+        ];
   }
 
   const total = await prisma.sale.count({ where });

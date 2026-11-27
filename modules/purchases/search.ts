@@ -22,6 +22,7 @@ export async function searchPurchaseVariants(
     where: {
       OR: [
         { sku: { contains: term, mode: "insensitive" } },
+        { barcode: { contains: term, mode: "insensitive" } },
         { product: { name: { contains: term, mode: "insensitive" } } },
         { product: { brand: { name: { contains: term, mode: "insensitive" } } } },
       ],

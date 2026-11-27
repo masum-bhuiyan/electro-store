@@ -1,5 +1,6 @@
 import Link from "next/link";
 import CustomerActiveToggle from "@/components/admin/customerActiveToggle";
+import LiveSearchBox from "@/components/admin/liveSearchBox";
 import {
   CUSTOMER_TYPES,
   CUSTOMER_TYPE_LABELS,
@@ -87,23 +88,7 @@ export default async function AdminCustomersPage({ searchParams }: Props) {
         ))}
       </div>
 
-      <form action="/admin/customers" method="get" className="mb-4 flex gap-3">
-        {type && <input type="hidden" name="type" value={type} />}
-        <input
-          type="search"
-          name="q"
-          defaultValue={q}
-          maxLength={50}
-          placeholder="নাম, দোকানের নাম বা ফোন নম্বর"
-          className="flex-1 rounded-md border border-gray-300 px-3 py-2 text-sm"
-        />
-        <button
-          type="submit"
-          className="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium hover:bg-gray-50"
-        >
-          খুঁজুন
-        </button>
-      </form>
+      <LiveSearchBox placeholder="নাম, দোকানের নাম বা ফোন নম্বর (লিখলেই খুঁজবে)" />
 
       <p className="mb-3 text-sm text-gray-500">{total}জন ক্রেতা</p>
 

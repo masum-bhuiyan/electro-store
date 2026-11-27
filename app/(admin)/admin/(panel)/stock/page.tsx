@@ -1,4 +1,5 @@
 import Link from "next/link";
+import LiveSearchBox from "@/components/admin/liveSearchBox";
 import { requirePermission } from "@/modules/auth/session";
 import { LOW_STOCK_LIMIT } from "@/modules/admin/stats";
 import { getStockList } from "@/modules/inventory/admin";
@@ -56,23 +57,7 @@ export default async function AdminStockPage({ searchParams }: Props) {
         </Link>
       </div>
 
-      <form action="/admin/stock" method="get" className="mb-4 flex gap-3">
-        {lowOnly && <input type="hidden" name="low" value="1" />}
-        <input
-          type="search"
-          name="q"
-          defaultValue={q}
-          maxLength={50}
-          placeholder="প্রোডাক্টের নাম, ব্র্যান্ড বা SKU"
-          className="flex-1 rounded-md border border-gray-300 px-3 py-2 text-sm"
-        />
-        <button
-          type="submit"
-          className="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium hover:bg-gray-50"
-        >
-          খুঁজুন
-        </button>
-      </form>
+           <LiveSearchBox placeholder="প্রোডাক্টের নাম, ব্র্যান্ড বা SKU (লিখলেই খুঁজবে)" />
 
            <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
         <p className="text-sm text-gray-500">{total}টি ভ্যারিয়ান্ট</p>

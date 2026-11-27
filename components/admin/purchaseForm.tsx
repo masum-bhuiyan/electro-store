@@ -32,17 +32,21 @@ export default function PurchaseForm({
   canSetPrice,
   canViewCost,
   initialRows = [],
+  initialSupplierId = "",
 }: {
   suppliers: Supplier[];
   canSetPrice: boolean;
   canViewCost: boolean;
   initialRows?: PurchaseSearchRow[];
+  initialSupplierId?: string;
 }) {
   const router = useRouter();
   const submitLock = useRef(false);
   const searchCounter = useRef(0);
 
-  const [supplierId, setSupplierId] = useState("");
+  const [supplierId, setSupplierId] = useState(
+    suppliers.some((s) => s.id === initialSupplierId) ? initialSupplierId : ""
+  );
   const [billNo, setBillNo] = useState("");
   const [note, setNote] = useState("");
   const [paid, setPaid] = useState("");
@@ -84,6 +88,12 @@ export default function PurchaseForm({
     }, 300);
     return () => clearTimeout(timer);
   }, [query]);
+    // স্ক্যানার কোড টাইপ করে Enter চাপে: ফল ঠিক একটা হলে সরাসরি যোগ
+  function handleScanKey(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (e.key !== "Enter") return;
+    e.preventDefault();
+    if (results.length === 1) addLine(results[0]);
+  }
 
   function addLine(row: PurchaseSearchRow) {
     setLines((prev) =>
@@ -206,6 +216,7 @@ export default function PurchaseForm({
             maxLength={50}
             placeholder="যেমন: soldering"
             onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={handleScanKey}
             className={inputClass}
           />
         </label>

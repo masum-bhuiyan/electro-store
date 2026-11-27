@@ -1,5 +1,6 @@
 import Link from "next/link";
 import OrderStatusBadge from "@/components/admin/orderStatusBadge";
+import LiveSearchBox from "@/components/admin/liveSearchBox";
 import { formatDateTime, formatPrice } from "@/lib/format";
 import {
   ALL_ORDER_STATUSES,
@@ -68,23 +69,7 @@ export default async function AdminOrdersPage({ searchParams }: Props) {
         ))}
       </div>
 
-      <form action="/admin/orders" method="get" className="mb-4 flex gap-3">
-        {status && <input type="hidden" name="status" value={status} />}
-        <input
-          type="search"
-          name="q"
-          defaultValue={q}
-          maxLength={50}
-          placeholder="অর্ডার নম্বর, ক্রেতার নাম বা ফোন নম্বর"
-          className="flex-1 rounded-md border border-gray-300 px-3 py-2 text-sm"
-        />
-        <button
-          type="submit"
-          className="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium hover:bg-gray-50"
-        >
-          খুঁজুন
-        </button>
-      </form>
+      <LiveSearchBox placeholder="অর্ডার নম্বর, ক্রেতার নাম বা ফোন নম্বর (লিখলেই খুঁজবে)" />
 
       <p className="mb-3 text-sm text-gray-500">{total}টি অর্ডার</p>
 

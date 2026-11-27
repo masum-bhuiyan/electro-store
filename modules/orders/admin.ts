@@ -105,13 +105,20 @@ export async function getAdminOrders(params: {
 
   const term = params.q?.trim().slice(0, 50);
   if (term) {
-    const phone = normalizePhone(term);
-    where.OR = [
-      { orderNumber: { contains: term.toUpperCase().replace(/\s/g, "") } },
-      { customerName: { contains: term, mode: "insensitive" } },
-      // পুরো সঠিক ফোন নম্বর হলে হুবহু মেলাই, নইলে অংশ মেলাই
-      { phone: phone ?? { contains: term.replace(/[\s-]/g, "") } },
-    ];
+    const english = term.replace(/[০-৯]/g, (d) => String("০১২৩৪৫৬৭৮৯".indexOf(d)));
+    const phone = normalizePhone(english);
+    const digits = english.replace(/\D/g, "").replace(/^(?:\+?88)(?=0?1)/, "");
+    const isPhoneLike = /^[\d\s+\-]+$/.test(english);
+    where.OR = isPhoneLike
+      ? [
+          // পুরো সঠিক নম্বর হলে হুবহু, নইলে অংশ মেলাই
+          { phone: phone ?? { contains: digits } },
+          { orderNumber: { contains: english.replace(/\s/g, "") } },
+        ]
+      : [
+          { orderNumber: { contains: english.toUpperCase().replace(/\s/g, "") } },
+          { customerName: { contains: english, mode: "insensitive" } },
+        ];
   }
 
   const total = await prisma.order.count({ where });

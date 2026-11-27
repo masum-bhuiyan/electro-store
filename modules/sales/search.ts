@@ -63,9 +63,28 @@ const customerSelect = {
   phone: true,
 } as const;
 
+// বাংলা অঙ্ককে ইংরেজি অঙ্কে বদলায়
+function toEnglishDigits(s: string): string {
+  return s.replace(/[০-৯]/g, (d) => String("০১২৩৪৫৬৭৮৯".indexOf(d)));
+}
+
 export async function searchSaleCustomers(q: string): Promise<SaleCustomerRow[]> {
-  const term = q.trim().slice(0, 50);
+  const term = toEnglishDigits(q.trim().slice(0, 50));
   if (term.length < 2) return [];
+
+  // শুধু অঙ্ক/চিহ্ন হলে ফোন নম্বর ধরে খুঁজি (+88, 88, স্পেস, - বাদ)
+  const looksLikePhone = /^[\d\s+\-]+$/.test(term);
+  const digits = term.replace(/\D/g, "").replace(/^(?:\+?88)(?=0?1)/, "");
+
+  if (looksLikePhone) {
+    if (digits.length < 3) return [];
+    return prisma.customer.findMany({
+      where: { isActive: true, phone: { contains: digits } },
+      orderBy: { name: "asc" },
+      take: 8,
+      select: customerSelect,
+    });
+  }
 
   return prisma.customer.findMany({
     where: {
@@ -73,11 +92,10 @@ export async function searchSaleCustomers(q: string): Promise<SaleCustomerRow[]>
       OR: [
         { name: { contains: term, mode: "insensitive" } },
         { contactName: { contains: term, mode: "insensitive" } },
-        { phone: { contains: term.replace(/[\s-]/g, "") } },
       ],
     },
     orderBy: { name: "asc" },
-    take: 6,
+    take: 8,
     select: customerSelect,
   });
 }

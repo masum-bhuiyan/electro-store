@@ -2,15 +2,9 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import PrintButton from "@/components/admin/printButton";
 import PaidSeal from "@/components/admin/paidSeal";
+import ShopHeader from "@/components/admin/shopHeader";
 import { customerTypeLabel } from "@/lib/customer-type";
-import {
-  SHOP_ADDRESS,
-  SHOP_HOURS,
-  SHOP_LEGAL_NAME,
-  SHOP_PHONE,
-  SHOP_PHONE_2,
-  SHOP_WEBSITE,
-} from "@/lib/site";
+import { SHOP_PHONE } from "@/lib/site";
 import { requirePermission } from "@/modules/auth/session";
 import { getAdminSale } from "@/modules/sales/admin";
 import { SALE_PAY_LABELS, type SalePayMethodKey } from "@/modules/sales/validation";
@@ -62,28 +56,7 @@ export default async function SalePrintPage({ params }: Props) {
       </div>
 
       <div className="mx-auto max-w-[210mm] bg-white p-8 text-sm text-black shadow print:max-w-none print:p-0 print:shadow-none">
-                    <header className="flex items-start gap-4 border-b-2 border-black pb-3">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src="/logo.png"
-            alt={SHOP_LEGAL_NAME}
-            width={90}
-            height={90}
-            className="-mt-1 h-[90px] w-[90px] shrink-0 object-contain"
-          />
-          <div className="flex-1 text-center">
-            <h1 className="text-2xl font-bold">{SHOP_LEGAL_NAME}</h1>
-            <p className="mt-1">{SHOP_ADDRESS}</p>
-            <p>
-              মোবাইল: {SHOP_PHONE}, {SHOP_PHONE_2}
-            </p>
-            <p className="mt-1 text-base font-bold tracking-wide text-[#000000]">
-              Website: {SHOP_WEBSITE}
-            </p>
-            <p className="text-xs text-gray-600">{SHOP_HOURS}</p>
-          </div>
-          <div className="w-[90px] shrink-0" />
-        </header>
+        <ShopHeader />
 
         <div className="mt-4 flex flex-wrap justify-between gap-4">
           <div>

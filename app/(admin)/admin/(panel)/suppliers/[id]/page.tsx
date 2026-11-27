@@ -100,6 +100,15 @@ export default async function EditSupplierPage({ params }: Props) {
         </div>
       </div>
 
+      <p className="mt-4 text-sm">
+        <Link
+          href={`/admin/print/supplier-ledger/${supplier.id}`}
+          className="text-blue-600 hover:underline"
+        >
+          খতিয়ান দেখুন
+        </Link>
+      </p>
+
       {/* টাকা দিন */}
       {canPay && (
         <section className="mt-6 rounded-lg border border-gray-200 bg-white p-5">
@@ -185,7 +194,10 @@ export default async function EditSupplierPage({ params }: Props) {
               </Link>
             )}
             {supplier.isActive && (
-              <Link href="/admin/purchases/new" className="text-blue-600 hover:underline">
+              <Link
+                href={`/admin/purchases/new?supplier=${supplier.id}`}
+                className="text-blue-600 hover:underline"
+              >
                 + নতুন ক্রয়
               </Link>
             )}
